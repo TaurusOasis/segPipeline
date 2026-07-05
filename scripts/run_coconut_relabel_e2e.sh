@@ -33,8 +33,20 @@ fi
 echo "==> Bootstrap manifest/annotations/HITL from benchmark (yolo_person__sam2)"
 $HMP pipeline bootstrap-from-benchmark --config "$CONFIG"
 
+if [ "${RELABEL_BOUNDARY:-0}" = "1" ] && [ "$PROVIDER" = "yolo_sam2" ]; then
+  BENCH_DIR="${BENCH_DIR:-$ROOT/runs/coconut_compare/yolo_person__sam2}"
+  echo "==> Export bad_boundary queue and SamHQ re-label ($BENCH_DIR)"
+  $HMP eval coconut-export-bad-boundary --benchmark-dir "$BENCH_DIR"
+  $HMP eval coconut-relabel-boundary --config "$CONFIG" --benchmark-dir "$BENCH_DIR" --teacher samhq
+  echo "==> Re-bootstrap after boundary re-label"
+  $HMP pipeline bootstrap-from-benchmark --config "$CONFIG"
+fi
+
 echo "==> Run relabel pipeline stages 5-11 ($PROVIDER alpha teachers on accept/review masks)"
 $HMP pipeline run-relabel --config "$CONFIG" --provider "$PROVIDER" --from-stage 5 --to-stage 11
+
+echo "==> MQE / QA on processed alpha queue"
+$HMP eval mqe --config "$CONFIG"
 
 echo ""
 echo "COCONut relabel e2e complete."

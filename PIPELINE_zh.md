@@ -246,6 +246,8 @@ hmp eval coconut-iterate --config configs/coconut_benchmark.yaml
 ```bash
 hmp eval coconut-resummarize --benchmark-dir runs/coconut_benchmark --config configs/coconut_benchmark.yaml
 hmp eval coconut-export-review --benchmark-dir runs/coconut_benchmark
+hmp eval coconut-export-bad-boundary --benchmark-dir runs/coconut_compare/yolo_person__sam2
+hmp eval coconut-relabel-boundary --config configs/coconut_relabel.yaml --benchmark-dir runs/coconut_compare/yolo_person__sam2 --teacher samhq
 hmp eval coconut-visualize --benchmark-dir runs/coconut_benchmark
 ```
 
