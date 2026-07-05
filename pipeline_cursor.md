@@ -3,10 +3,20 @@
 > **说明**：本文件仅用于 Cursor 会话内跟踪进度与决策，**不替代** canonical 文档。  
 > 设计文档仍以 [PIPELINE_zh.md](PIPELINE_zh.md)、[OPEN_SOURCE_INTEGRATION_TARGETS_zh.md](OPEN_SOURCE_INTEGRATION_TARGETS_zh.md)、[CODE_TARGETS_MEM_zh.md](CODE_TARGETS_MEM_zh.md) 为准。
 
-最后更新：2026-07-05  
-分支：`iter/prompt-agent-v2` · 最近 commit：`1eaf1bf`
+最后更新：2026-07-05 19:05  
+分支：`main` = `41977d6` · GPU 验证 watcher 已后台排队（训练结束后自动跑）
 
 ---
+
+## 0. GPU 环境约束（5090D×3 · cuda133）
+
+| 项 | 状态 |
+| --- | --- |
+| GPU | 3× RTX 5090 D（各 32607 MiB） |
+| 长期训练 | DDP `yolo26-cu133` 占满 GPU0–2（~20–24GB/卡，已跑 ~8h+） |
+| 策略 | **不抢占** DDP；`MIN_FREE_MIB≥16000` 才跑验证 |
+| 后台任务 | `WAIT=1 bash scripts/run_gpu_validation_when_idle.sh` → `runs/validation/gpu_validation.log` |
+
 
 ## 1. 文档索引（只读引用）
 
@@ -37,8 +47,8 @@
 
 | 版本 | 目标 | Pipeline 阶段 | 状态 | 备注 |
 | --- | --- | --- | --- | --- |
-| **V0** | 图像 instance mask + YOLO seg label | 0–2, 4–5, benchmark QA | 🟡 进行中 | COCONut 128 图 benchmark 已跑；accept overlay 桥接已建 |
-| **V1** | yolo26s-seg baseline / 蒸馏 | 导出 + ultralytics 训练 | 🟡 桥接已建 | 待 GPU smoke test 验证 accept overlay 收益 |
+| **V0** | 图像 instance mask + YOLO seg label | 0–2, 4–5, benchmark QA | 🟡 进行中 | 四模式 benchmark 已有；samhq 待 GPU 空闲 |
+| **V1** | yolo26s-seg baseline / 蒸馏 | 导出 + ultralytics 训练 | 🟡 overlay 已导出 | **60 val 标签**已 patch；蒸馏 smoke 排队 |
 | **V2** | 视频 masklet + temporal QA | 0–1, 4–5, 8 | ⚪ 未开始 | SA-V ingest 属此层；本地尚无 SA-V 数据 |
 | **V3** | alpha / eval_map / fusion | 6–11 | 🟢 mock 已通 | MatAnyone/SEMat/VideoMaMa 真实 adapter 待接 |
 | **V4** | 端侧 tracker + 轻量 matting | 部署 | ⚪ 后续 | — |
@@ -112,9 +122,30 @@
 | gt_bbox + SAM2 | 0.788 | 37.1% |
 | yolo_person + GrabCut | 0.386 | 3.7% |
 | **yolo_person + SAM2** | **0.771** | **34.6%** |
-| yolo_person + SamHQ | 待 GPU 跑 | — |
+| yolo_person + SamHQ | 待 GPU 空闲 watcher | — |
 
 生产迭代默认优先：`yolo_person + sam2`（`production_score_margin: 0.03`）。
+
+**2026-07-05 CPU 验证（已完成）：**
+
+| 步骤 | 结果 |
+| --- | --- |
+| `hmp yolo export-accept-coconut` | ✅ patch **60/350** accept val 标签 → `data/coconut/yolo_accept_overlay/` |
+| `hmp yolo distill-plan` | ✅ 已生成 ultralytics 命令（修复 `load_model_tiers` Config.items bug） |
+| `coconut-export-bad-boundary` | ✅ **6** 条 bad_boundary 待 SamHQ 重标 |
+| `run_gpu_validation_when_idle.sh` | ⏳ 三卡均 <16GB 空闲，已 skip；`WAIT=1` 后台排队 |
+| mock e2e stages 5–11 + MQE | ✅ **328** instances → `alpha_labels.jsonl` + `mqe_report.jsonl` |
+
+**蒸馏 smoke 命令（单卡，训练结束后执行）：**
+
+```bash
+CUDA_VISIBLE_DEVICES=0 /home/genesis/Tools/Anaconda/envs/yolo26-cu133/bin/python \
+  /home/genesis/Train/Code/ultralytics/scripts/train_yolo26s_seg_coconut_distill.py \
+  --data data/coconut/yolo_accept_overlay/data.yaml \
+  --student .../yolo26s-seg-lvis-coco80-distill-x-teacher-b80-2gpu/weights/best.pt \
+  --teacher .../yolo26x-seg.pt \
+  --name smoke-coconut-accept-overlay-distill --epochs 2 --batch 8 --device 0 --no-swanlab
+```
 
 产物目录：`runs/coconut_compare/` · 桥接配置：`configs/coconut_relabel.yaml`
 
@@ -130,6 +161,7 @@
 - [x] model tiers（`configs/models.yaml` + `sam_teacher.py`）
 - [x] accept → YOLO overlay + distill plan（`coconut_distill_bridge.py`）
 - [x] E2E 脚本：`run_coconut_relabel_e2e.sh`（含可选 RELABEL_BOUNDARY + MQE）
+- [x] `LABEL_SPEC_zh.md` + `configs/class_map.yaml` + `configs/qa_schema.yaml`（CODE_TARGETS Phase 0）
 
 ### 进行中 / 下一步
 
@@ -138,7 +170,6 @@
 - [ ] Stage 7 真实 alpha teacher adapter（Bv/Bi 优先 MatAnyone/SEMat dry-run）
 - [ ] accept 样本上 `hmp eval mqe` + fuse-alpha 质量验证
 - [ ] SA-V ingest adapter 骨架（dry-run，不依赖本地下载）
-- [ ] `LABEL_SPEC_zh.md` + `configs/class_map.yaml`（CODE_TARGETS Phase 0）
 - [ ] `src/hmp/adapters/` 基类 contract（command template + dry-run + output validation）
 
 ### 暂缓
@@ -181,8 +212,9 @@ cd segPipeline && PYTHONPATH=src pytest -q --ignore=tests/test_alpha_metrics.py
 
 | 日期 | 内容 |
 | --- | --- |
-| 2026-07-05 | 创建本文件；梳理 V0–V4 × 12 阶段 × 开源集成状态；不修改 canonical 文档 |
-| 2026-07-05 | 前序：SamHQ benchmark、bad_boundary 重标、accept→蒸馏桥接已合入 `iter/prompt-agent-v2` |
+| 2026-07-05 19:05 | GPU 验证：三卡 DDP 占用，CPU 完成 accept overlay(60) + distill-plan + bad_boundary(6)；启动 `WAIT=1` gpu watcher |
+| 2026-07-05 | 创建本文件；main/iter 已同步 `41977d6` |
+| 2026-07-05 | SamHQ benchmark、bad_boundary 重标、accept→蒸馏桥接合入 main |
 
 ---
 

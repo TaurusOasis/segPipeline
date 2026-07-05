@@ -98,11 +98,21 @@ def _default_registry() -> ModelTierRegistry:
     )
 
 
+def _cfg_mapping(value: object) -> dict[str, object]:
+    if value is None:
+        return {}
+    if isinstance(value, Config):
+        return value.to_dict()
+    if isinstance(value, dict):
+        return value
+    return {}
+
+
 def load_model_tiers(cfg: Config, *, project_root: Optional[Path] = None) -> ModelTierRegistry:
     """Load tier registry from config ``models`` block and/or ``configs/models.yaml``."""
     root = Path(project_root) if project_root else Path.cwd()
     base = _default_registry()
-    raw = cfg.get("models", {})
+    raw = _cfg_mapping(cfg.get("models"))
     if not raw:
         registry_path = resolve_path(root, "configs/models.yaml")
         if registry_path.exists():
@@ -110,7 +120,7 @@ def load_model_tiers(cfg: Config, *, project_root: Optional[Path] = None) -> Mod
     if not raw:
         return base
 
-    edge_raw = raw.get("edge", {})
+    edge_raw = _cfg_mapping(raw.get("edge"))
     edge = EdgeModelSpec(
         name=str(edge_raw.get("name", base.edge.name)),
         role=str(edge_raw.get("role", base.edge.role)),
@@ -118,7 +128,7 @@ def load_model_tiers(cfg: Config, *, project_root: Optional[Path] = None) -> Mod
         deploy_target=str(edge_raw.get("deploy_target", base.edge.deploy_target)),
     )
     teachers: dict[str, TeacherModelSpec] = {}
-    for key, spec in (raw.get("teachers") or {}).items():
+    for key, spec in _cfg_mapping(raw.get("teachers")).items():
         if not isinstance(spec, dict):
             continue
         teachers[str(key)] = TeacherModelSpec(
