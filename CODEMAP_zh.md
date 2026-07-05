@@ -27,6 +27,23 @@
 | 10 | HITL | `hitl/queue.py` | review 队列 |
 | 11 | 导出 | `export/export_labels.py` | label 输出 |
 
+## 模型分层（Edge vs GPU Teacher）
+
+详见 [MODEL_TIERS_zh.md](MODEL_TIERS_zh.md)。
+
+| 层级 | 模型 | 模块 |
+|------|------|------|
+| Edge 学生 | yolo26s-seg | `yolo_person_detector.py`（检测框） |
+| Segment Teacher | SAM2 / SamHQ | `labeling/sam_teacher.py` |
+| Distill Teacher | yolo26x-seg | ultralytics/ 蒸馏（外部） |
+| 注册表 | `configs/models.yaml` | `models/tiers.py` |
+
+```bash
+hmp config models
+hmp label yolo-sam2 --teacher samhq
+hmp pipeline run-relabel --provider yolo_samhq
+```
+
 ## 共享标注内核 (Step 2–4 + Benchmark)
 
 ```
@@ -76,11 +93,13 @@ configs/coconut_benchmark.yaml
 
 ```
 dataset coconut-sample → manifest.jsonl
-label yolo-sam2        → annotations_raw.jsonl (+ prompt_history.decision)
+label yolo-sam2        → annotations + prompt_history.decision
+  OR bootstrap-from-benchmark (yolo_person__sam2 benchmark output)
 refine masks           → annotations_refined.jsonl
 matting trimap         → trimaps/
 relabel queue          → relabel_queue.jsonl (QA-aware review_required)
 pipeline run-relabel   → 全流程 orchestrator
+bash run_coconut_relabel_e2e.sh → bootstrap + stages 5-11
 ```
 
 ## 关键 CLI

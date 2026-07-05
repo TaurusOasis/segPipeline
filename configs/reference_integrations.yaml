@@ -1,0 +1,260 @@
+version: 1
+last_updated: "2026-07-05"
+
+policy:
+  integration_style: "adapter_or_subprocess"
+  no_vendored_research_repos: true
+  require_dry_run: true
+  require_license_review_before_training: true
+  provenance_fields:
+    - prompt_history
+    - branch_source
+    - quality_scores
+    - license_meta
+
+mvp_stack:
+  data_management: ["fiftyone", "pycocotools", "pyscenedetect", "decord"]
+  human_discovery: ["grounded_sam2", "groundingdino", "ultralytics_yolo", "mmpose"]
+  masklet: ["sam2", "cutie", "xmem"]
+  mask_refine: ["samrefiner", "hq_sam", "cascadepsp"]
+  alpha_teachers: ["matanyone", "maggie", "semat", "matting_anything"]
+  diffusion_refine: ["videomama", "diffmatte", "sdmatte"]
+  qa: ["raft", "gmflow", "mmagic", "pymatting", "fiftyone"]
+  hitl: ["cvat", "label_studio", "fiftyone"]
+  active_labeling: ["gymnasium", "stable_baselines3", "cleanrl"]
+
+integrations:
+  sam2:
+    group: "masklet"
+    url: "https://github.com/facebookresearch/sam2"
+    priority: 1
+    role: "Promptable image/video segmentation and masklet propagation."
+    adapter_target: "src/hmp/adapters/vos/sam2.py"
+    expected_outputs: ["masklet", "track_id", "prompt_history"]
+    license_review: "required"
+
+  grounded_sam2:
+    group: "human_discovery"
+    url: "https://github.com/IDEA-Research/Grounded-SAM-2"
+    priority: 1
+    role: "Open-vocabulary person discovery plus SAM2 tracking bootstrap."
+    adapter_target: "src/hmp/adapters/detection/grounded_sam2.py"
+    expected_outputs: ["person_candidates", "bbox", "rle_mask", "score"]
+    license_review: "required"
+
+  groundingdino:
+    group: "human_discovery"
+    url: "https://github.com/IDEA-Research/GroundingDINO"
+    priority: 2
+    role: "Text-prompt person/hair/hand/clothing detection."
+    adapter_target: "src/hmp/adapters/detection/groundingdino.py"
+    expected_outputs: ["bbox", "score", "phrase"]
+    license_review: "required"
+
+  ultralytics_yolo:
+    group: "human_discovery"
+    url: "https://github.com/ultralytics/ultralytics"
+    priority: 2
+    role: "High-throughput person detector/segmenter/pose baseline."
+    adapter_target: "src/hmp/adapters/detection/yolo.py"
+    expected_outputs: ["bbox", "mask", "score"]
+    license_review: "agpl_or_enterprise"
+
+  cutie:
+    group: "masklet"
+    url: "https://github.com/hkchengrex/Cutie"
+    priority: 2
+    role: "VOS fallback and interactive video segmentation propagation."
+    adapter_target: "src/hmp/adapters/vos/cutie.py"
+    expected_outputs: ["masklet", "track_id"]
+    license_review: "required"
+
+  xmem:
+    group: "masklet"
+    url: "https://github.com/hkchengrex/XMem"
+    priority: 3
+    role: "Long-video memory-based VOS fallback."
+    adapter_target: "src/hmp/adapters/vos/xmem.py"
+    expected_outputs: ["masklet", "track_id"]
+    license_review: "required"
+
+  samrefiner:
+    group: "mask_refine"
+    url: "https://github.com/linyq2117/SAMRefiner"
+    priority: 1
+    role: "Coarse-mask boundary refinement with generated prompts."
+    adapter_target: "src/hmp/adapters/mask_refine/samrefiner.py"
+    expected_outputs: ["refined_mask", "mask_quality"]
+    license_review: "required"
+
+  hq_sam:
+    group: "mask_refine"
+    url: "https://github.com/SysCV/sam-hq"
+    priority: 2
+    role: "High-quality SAM/SAM2 boundary refinement."
+    adapter_target: "src/hmp/adapters/mask_refine/hq_sam.py"
+    expected_outputs: ["refined_mask"]
+    license_review: "required"
+
+  cascadepsp:
+    group: "mask_refine"
+    url: "https://github.com/hkchengrex/CascadePSP"
+    priority: 3
+    role: "High-resolution segmentation refinement."
+    adapter_target: "src/hmp/adapters/mask_refine/cascadepsp.py"
+    expected_outputs: ["refined_mask"]
+    license_review: "required"
+
+  matanyone:
+    group: "alpha_teacher_video"
+    url: "https://github.com/pq-yang/MatAnyone"
+    priority: 1
+    role: "Target-assigned human video matting branch Bv."
+    adapter_target: "src/hmp/adapters/matting/matanyone.py"
+    expected_outputs: ["alpha_video", "branch_source"]
+    license_review: "required"
+
+  matanyone2:
+    group: "alpha_teacher_video"
+    url: "https://github.com/pq-yang/MatAnyone2"
+    priority: 1
+    role: "Real-video matting and MQE design reference."
+    adapter_target: "src/hmp/adapters/matting/matanyone2.py"
+    expected_outputs: ["alpha_video", "eval_map", "quality_score"]
+    license_review: "required"
+
+  maggie:
+    group: "alpha_teacher"
+    url: "https://github.com/hmchuong/MaGGIe"
+    priority: 1
+    role: "Mask-guided multi-human image/video instance matting."
+    adapter_target: "src/hmp/adapters/matting/maggie.py"
+    expected_outputs: ["alpha", "instance_alpha"]
+    license_review: "required"
+
+  semat:
+    group: "alpha_teacher_image"
+    url: "https://github.com/XiaRho/SEMat"
+    priority: 1
+    role: "Semantic/person mask-to-alpha image branch Bi."
+    adapter_target: "src/hmp/adapters/matting/semat.py"
+    expected_outputs: ["alpha_image"]
+    license_review: "required"
+
+  matting_anything:
+    group: "alpha_teacher_image"
+    url: "https://github.com/shi-labs/Matting-Anything"
+    priority: 2
+    role: "SAM feature plus mask-to-matte branch."
+    adapter_target: "src/hmp/adapters/matting/matting_anything.py"
+    expected_outputs: ["alpha_image"]
+    license_review: "required"
+
+  rvm:
+    group: "alpha_teacher_video"
+    url: "https://github.com/PeterL1n/RobustVideoMatting"
+    priority: 2
+    role: "Real-time video matting baseline and teacher."
+    adapter_target: "src/hmp/adapters/matting/rvm.py"
+    expected_outputs: ["alpha_video"]
+    license_review: "required"
+
+  videomama:
+    group: "diffusion_refine"
+    url: "https://github.com/cvlab-kaist/VideoMaMa"
+    priority: 1
+    role: "Video diffusion mask-to-matte branch Bd."
+    adapter_target: "src/hmp/adapters/diffusion/videomama.py"
+    expected_outputs: ["alpha_diffusion", "refine_roi"]
+    license_review: "non_commercial_risk"
+
+  diffmatte:
+    group: "diffusion_refine"
+    url: "https://github.com/YihanHu-2022/DiffMatte"
+    priority: 2
+    role: "Image/keyframe diffusion matting refine."
+    adapter_target: "src/hmp/adapters/diffusion/diffmatte.py"
+    expected_outputs: ["alpha_diffusion"]
+    license_review: "required"
+
+  sdmatte:
+    group: "diffusion_refine"
+    url: "https://github.com/vivoCameraResearch/SDMatte"
+    priority: 3
+    role: "Stable-Diffusion based interactive image matting reference."
+    adapter_target: "src/hmp/adapters/diffusion/sdmatte.py"
+    expected_outputs: ["alpha_diffusion"]
+    license_review: "required"
+
+  raft:
+    group: "qa"
+    url: "https://github.com/princeton-vl/RAFT"
+    priority: 1
+    role: "Optical-flow temporal consistency QA."
+    adapter_target: "src/hmp/adapters/qa/raft.py"
+    expected_outputs: ["temporal_error", "flow_consistency_score"]
+    license_review: "required"
+
+  gmflow:
+    group: "qa"
+    url: "https://github.com/haofeixu/gmflow"
+    priority: 2
+    role: "Global-matching optical flow QA alternative."
+    adapter_target: "src/hmp/adapters/qa/gmflow.py"
+    expected_outputs: ["temporal_error", "flow_consistency_score"]
+    license_review: "required"
+
+  mmagic:
+    group: "qa"
+    url: "https://github.com/open-mmlab/mmagic"
+    priority: 2
+    role: "Matting metrics and diffusion/matting training references."
+    adapter_target: "src/hmp/adapters/qa/mmagic_metrics.py"
+    expected_outputs: ["sad", "mse", "gradient", "connectivity"]
+    license_review: "required"
+
+  fiftyone:
+    group: "data_management"
+    url: "https://github.com/voxel51/fiftyone"
+    priority: 1
+    role: "Dataset browser, bad-case mining, and review queue frontend."
+    adapter_target: "src/hmp/adapters/hitl/fiftyone.py"
+    expected_outputs: ["dataset_view", "review_selection"]
+    license_review: "required"
+
+  cvat:
+    group: "hitl"
+    url: "https://github.com/cvat-ai/cvat"
+    priority: 1
+    role: "Human-in-the-loop correction platform."
+    adapter_target: "src/hmp/adapters/hitl/cvat.py"
+    expected_outputs: ["human_edits", "corrected_prompts", "audit_log"]
+    license_review: "required"
+
+  label_studio:
+    group: "hitl"
+    url: "https://github.com/HumanSignal/label-studio"
+    priority: 2
+    role: "General annotation platform with ML backend support."
+    adapter_target: "src/hmp/adapters/hitl/label_studio.py"
+    expected_outputs: ["human_edits", "audit_log"]
+    license_review: "required"
+
+  gymnasium:
+    group: "active_labeling"
+    url: "https://github.com/Farama-Foundation/Gymnasium"
+    priority: 2
+    role: "Prompt/fusion/active-labeling environment API."
+    adapter_target: "src/hmp/adapters/active_labeling/gym_env.py"
+    expected_outputs: ["agent_episode", "reward_trace"]
+    license_review: "required"
+
+  stable_baselines3:
+    group: "active_labeling"
+    url: "https://github.com/DLR-RM/stable-baselines3"
+    priority: 3
+    role: "PPO/A2C/DQN baseline for prompt/fusion agents."
+    adapter_target: "src/hmp/adapters/active_labeling/sb3_agent.py"
+    expected_outputs: ["policy_checkpoint", "decision_trace"]
+    license_review: "required"
+

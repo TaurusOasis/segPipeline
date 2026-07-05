@@ -242,13 +242,16 @@ class BenchmarkRecord(BaseModel):
     pred_area_ratio: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     false_positive_ratio: Optional[float] = Field(default=None, ge=0.0)
     false_negative_ratio: Optional[float] = Field(default=None, ge=0.0)
+    gt_area_bucket: Optional[Literal["tiny", "small", "medium", "large"]] = None
     prompt_confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     needs_scribble: bool = False
     decision: Literal["accept", "review", "reject"] = "review"
     error_tags: list[str] = Field(default_factory=list)
+    primary_error: Optional[str] = None
+    review_priority: Optional[float] = Field(default=None, ge=0.0)
     improvement_hint: str = ""
     elapsed_ms: float = Field(..., ge=0.0)
-    quality_scores: dict[str, float] = Field(default_factory=dict)
+    quality_scores: dict[str, object] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------

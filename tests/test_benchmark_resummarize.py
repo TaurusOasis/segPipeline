@@ -35,6 +35,7 @@ def test_backfill_legacy_record_gets_decision():
     updated = backfill_benchmark_records([record])[0]
     assert updated.decision == "accept"
     assert updated.improvement_hint
+    assert updated.review_priority is not None
 
 
 def test_resummarize_benchmark_dir(tmp_path):
@@ -57,6 +58,9 @@ def test_resummarize_benchmark_dir(tmp_path):
     summary = resummarize_benchmark_dir(out_dir)
     assert summary["instances"] == 1
     assert summary["decision_counts"]["accept"] == 1
+    assert "area_buckets" in summary
+    assert "tag_metrics" in summary
+    assert "primary_error_buckets" in summary
     assert (out_dir / "benchmark_summary.md").exists()
 
 
@@ -83,14 +87,28 @@ def test_export_benchmark_review_queue(tmp_path):
             error_tags=["low_iou"],
             elapsed_ms=1.0,
         ),
+        BenchmarkRecord(
+            item_id="worse",
+            instance_id="person_0",
+            image_path="/tmp/worse.jpg",
+            gt_mask_path="/tmp/gt.png",
+            mask_iou=0.10,
+            boundary_f_score=0.10,
+            decision="reject",
+            error_tags=["detector_miss", "low_iou"],
+            elapsed_ms=1.0,
+        ),
     ]
     out_dir = tmp_path / "bench"
     out_dir.mkdir()
     write_jsonl(out_dir / "benchmark_records.jsonl", records, overwrite=True)
     review_path = export_benchmark_review_queue(out_dir)
     rows = read_jsonl_list(review_path)
-    assert len(rows) == 1
-    assert rows[0]["item_id"] == "bad"
+    assert len(rows) == 2
+    assert rows[0]["item_id"] == "worse"
+    assert rows[0]["review_priority"] >= rows[1]["review_priority"]
+    assert rows[0]["primary_error"] == "detector_miss"
+    assert "gt_area_bucket" in rows[0]
 
 
 def test_coconut_resummarize_cli_accepts_config_quality_gates(tmp_path):

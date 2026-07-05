@@ -52,6 +52,36 @@ config_app = typer.Typer(help="Inspect loaded configuration.")
 app.add_typer(config_app, name="config")
 
 
+@config_app.command("models")
+def config_models(
+    config: Path | None = typer.Option(None, "--config", "-c", help="Optional config overlay."),
+) -> None:
+    """Print edge vs GPU teacher model tiers."""
+    from .config import Config, load_config
+    from .models.tiers import load_model_tiers
+
+    cfg = load_config(config) if config else Config({})
+    registry = load_model_tiers(cfg, project_root=Path.cwd())
+    payload = {
+        "edge": {
+            "name": registry.edge.name,
+            "role": registry.edge.role,
+            "weights": registry.edge.weights,
+            "deploy_target": registry.edge.deploy_target,
+        },
+        "teachers": {
+            key: {
+                "kind": spec.kind,
+                "backend": spec.backend,
+                "weights": spec.weights,
+                "notes": spec.notes,
+            }
+            for key, spec in registry.teachers.items()
+        },
+    }
+    typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+
+
 @config_app.command("show")
 def config_show(
     config: Path = typer.Option(..., "--config", "-c", help="Path to a YAML config file."),
@@ -144,16 +174,22 @@ def label_dummy(
 def label_yolo_sam2(
     config: Path = typer.Option(..., "--config", "-c"),
     dry_run: bool = typer.Option(False, "--dry-run"),
-    segment_mode: str = typer.Option("sam2", "--segment-mode", help="sam2 or grabcut"),
+    segment_mode: str = typer.Option("sam2", "--segment-mode", help="sam2 | samhq | grabcut"),
+    teacher: str = typer.Option("", "--teacher", help="Teacher key from models.yaml (sam2, samhq)."),
 ) -> None:
-    """Run YOLO person detection + SAM2/GrabCut segmentation (steps 2-4)."""
+    """Run YOLO edge detect + GPU segment teacher (SAM2/SamHQ) or GrabCut ablation."""
     from .config import resolve_path
     from .labeling.yolo_sam2_labeler import YoloSam2Labeler
 
     cfg = _load_cfg(config)
     manifest_path = resolve_path(Path.cwd(), cfg.get("paths", {}).get("manifest_path", "data/manifests/manifest.jsonl"))
-    mode = "sam2" if segment_mode == "sam2" else "grabcut"
-    labeler = YoloSam2Labeler(cfg, project_root=Path.cwd(), segment_mode=mode)
+    teacher_key = teacher or (segment_mode if segment_mode in {"sam2", "samhq", "grabcut"} else "sam2")
+    labeler = YoloSam2Labeler(
+        cfg,
+        project_root=Path.cwd(),
+        segment_mode=segment_mode,  # type: ignore[arg-type]
+        teacher_key=teacher_key,
+    )
     out = labeler.run(manifest_path, dry_run=dry_run, overwrite=True)
     typer.echo(str(out))
 
@@ -391,6 +427,59 @@ def eval_mqe(
     typer.echo(str(out))
 
 
+@eval_app.command("alpha-metrics")
+def eval_alpha_metrics(
+    pred_dir: Path = typer.Option(..., "--pred-dir", help="Directory of predicted alpha mattes (PNG, [0,1])."),
+    gt_dir: Path = typer.Option(..., "--gt-dir", help="Directory of GT alpha mattes (PNG, [0,1])."),
+    trimap_dir: Optional[Path] = typer.Option(None, "--trimap-dir", help="Optional trimap dir; 0/128/255 or bool unknown."),
+    with_connectivity: bool = typer.Option(False, "--connectivity", help="Also compute Xu et al. connectivity error (slower)."),
+    out: Path = typer.Option(Path("alpha_metrics.json"), "--out", help="Where to write the JSON summary."),
+) -> None:
+    """Compute SAD/MAD/MSE/gradient (and optionally connectivity) over matched alpha pairs.
+
+    Files are matched by stem (e.g. ``a_0001.png`` in pred matches ``a_0001.png``
+    in gt). Unmatched files are skipped and reported.
+    """
+    import json as _json
+
+    import numpy as np
+    from PIL import Image
+
+    from .eval.alpha_metrics import aggregate_alpha_metrics
+
+    def _load_gray(p: Path) -> np.ndarray:
+        return np.asarray(Image.open(p).convert("L"), dtype=np.float32) / 255.0
+
+    def _load_trimap(p: Path) -> np.ndarray:
+        return np.asarray(Image.open(p).convert("L"))
+
+    pred_paths = {p.stem: p for p in sorted(pred_dir.glob("*.png"))}
+    gt_paths = {p.stem: p for p in sorted(gt_dir.glob("*.png"))}
+    common = sorted(set(pred_paths) & set(gt_paths))
+    missing_pred = sorted(set(gt_paths) - set(pred_paths))
+    missing_gt = sorted(set(pred_paths) - set(gt_paths))
+    if not common:
+        typer.echo(f"No matched alpha pairs between {pred_dir} and {gt_dir}", err=True)
+        raise typer.Exit(1)
+
+    preds, gts, trimaps = [], [], []
+    for stem in common:
+        preds.append(_load_gray(pred_paths[stem]))
+        gts.append(_load_gray(gt_paths[stem]))
+        if trimap_dir is not None:
+            tp = trimap_dir / f"{stem}.png"
+            trimaps.append(_load_trimap(tp) if tp.exists() else None)
+    tri_list = trimaps if trimap_dir is not None else None
+
+    summary = aggregate_alpha_metrics(preds, gts, tri_list, with_connectivity=with_connectivity)
+    summary["n_pairs"] = len(common)
+    summary["missing_in_pred"] = missing_pred
+    summary["missing_in_gt"] = missing_gt
+    out.write_text(_json.dumps(summary, indent=2), encoding="utf-8")
+    typer.echo(f"alpha-metrics: {len(common)} pairs -> {out}")
+    typer.echo(_json.dumps({k: v for k, v in summary.items() if k.startswith(("sad", "mad", "mse", "grad", "conn"))}, indent=2))
+
+
 @eval_app.command("coconut-benchmark")
 def eval_coconut_benchmark(
     config: Path = typer.Option(..., "--config", "-c"),
@@ -489,6 +578,7 @@ def eval_coconut_import_annotations(
     benchmark_dir: Path = typer.Option(..., "--benchmark-dir", help="Benchmark output directory."),
     config: Path = typer.Option(..., "--config", "-c"),
     overwrite: bool = typer.Option(True, "--overwrite"),
+    decisions: str = typer.Option("", "--decisions", help="Comma-separated accept/review/reject filter."),
 ) -> None:
     """Import benchmark predictions into pipeline annotation path."""
     from .config import resolve_path
@@ -499,7 +589,13 @@ def eval_coconut_import_annotations(
         Path.cwd(),
         cfg.get("paths", {}).get("annotation_path", "data/annotations/annotations_raw.jsonl"),
     )
-    out = import_benchmark_annotations(benchmark_dir, annotation_path=ann_path, overwrite=overwrite)
+    decision_tuple = tuple(d.strip() for d in decisions.split(",") if d.strip()) or None
+    out = import_benchmark_annotations(
+        benchmark_dir,
+        annotation_path=ann_path,
+        overwrite=overwrite,
+        decisions=decision_tuple,
+    )
     typer.echo(str(out))
 
 
@@ -589,7 +685,11 @@ def pipeline_stages() -> None:
 def pipeline_run_relabel(
     config: Path = typer.Option(..., "--config", "-c"),
     dry_run: bool = typer.Option(False, "--dry-run"),
-    provider: str = typer.Option("mock", "--provider", help="mock | yolo_grabcut | yolo_sam2 (alpha teachers still mock/external)"),
+    provider: str = typer.Option(
+        "mock",
+        "--provider",
+        help="mock | yolo_grabcut | yolo_sam2 | yolo_samhq (edge=yolo26s-seg, teacher=GPU SAM/SamHQ)",
+    ),
     from_stage: int = typer.Option(0, "--from-stage"),
     to_stage: int = typer.Option(11, "--to-stage"),
 ) -> None:
@@ -607,6 +707,20 @@ def pipeline_run_relabel(
     )
     for index, name, out in results:
         typer.echo(f"{index}\t{name}\t{out}")
+
+
+@pipeline_app.command("bootstrap-from-benchmark")
+def pipeline_bootstrap_from_benchmark(
+    config: Path = typer.Option(..., "--config", "-c"),
+    benchmark_dir: Path | None = typer.Option(None, "--benchmark-dir", help="Override coconut_bridge.benchmark_dir."),
+) -> None:
+    """Import COCONut benchmark manifest/annotations and export HITL queue."""
+    from .eval.benchmark_bridge import bootstrap_from_benchmark
+
+    cfg = _load_cfg(config)
+    out = bootstrap_from_benchmark(cfg, project_root=Path.cwd(), benchmark_dir=benchmark_dir)
+    for key, path in out.items():
+        typer.echo(f"{key}\t{path}")
 
 
 if __name__ == "__main__":  # pragma: no cover

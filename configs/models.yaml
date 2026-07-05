@@ -1,0 +1,62 @@
+# Model tier registry: edge deploy vs GPU teachers (auto-label / clean / distill).
+# Edge student: yolo26s-seg. Teachers run on GPU only — never deployed to RK3576.
+
+edge:
+  name: yolo26s-seg
+  role: edge_segment_student
+  weights: /home/genesis/Train/Code/ultralytics/yolo26s-seg.pt
+  deploy_target: rk3576
+
+teachers:
+  sam2:
+    name: sam2_b
+    kind: segment
+    backend: sam2
+    weights: sam2_b.pt
+    device: 0
+    notes: Ultralytics SAM2 — default auto-label mask teacher
+
+  samhq:
+    name: sam_hq_vit_b
+    kind: segment
+    backend: samhq
+    weights: sam_hq_vit_b.pt
+    device: 0
+    notes: SamHQ boundary-heavy teacher; use for bad_boundary / review re-label
+    # Optional external fallback when weights not in Ultralytics hub:
+    # command_template: >
+    #   python external/samhq/run_predict.py
+    #   --image {image_path} --bbox {bbox_xyxy} --output {mask_path}
+
+  grabcut:
+    name: grabcut_cpu
+    kind: segment
+    backend: grabcut
+    notes: CPU ablation baseline only
+
+  yolo26x-seg:
+    name: yolo26x-seg
+    kind: distill
+    backend: external
+    weights: /home/genesis/Train/Code/ultralytics/yolo26x-seg.pt
+    notes: Distillation teacher in ultralytics/; not used for on-device inference
+
+  # Matting alpha teachers (stage 7) — external subprocess adapters
+  Bv:
+    kind: matting
+    backend: external
+    notes: video matting teacher branch
+  Bi:
+    kind: matting
+    backend: external
+    notes: image matting teacher branch
+  Bd:
+    kind: matting
+    backend: external
+    notes: diffusion boundary refine branch
+
+labeling_defaults:
+  edge_detector: yolo26s-seg
+  segment_teacher: sam2
+  boundary_teacher: samhq
+  distill_teacher: yolo26x-seg

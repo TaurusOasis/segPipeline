@@ -28,6 +28,31 @@ log = get_logger("hmp.eval.coconut_benchmark")
 DetectorMode = Literal["gt_bbox", "jitter_bbox", "center_prior", "yolo_person"]
 SamMode = Literal["grabcut", "oracle", "noisy_oracle", "sam2"]
 
+AREA_BUCKET_ORDER = {"tiny": 0, "small": 1, "medium": 2, "large": 3, "unknown": 4}
+PRIMARY_ERROR_ORDER = (
+    "detector_miss",
+    "empty_prediction",
+    "low_iou",
+    "bad_boundary",
+    "missed_foreground",
+    "background_leak",
+    "multi_person",
+    "small_person",
+    "large_person",
+    "needs_scribble",
+)
+REVIEW_PRIORITY_TAG_WEIGHTS = {
+    "detector_miss": 1.0,
+    "empty_prediction": 1.0,
+    "low_iou": 0.6,
+    "bad_boundary": 0.4,
+    "missed_foreground": 0.4,
+    "background_leak": 0.35,
+    "multi_person": 0.25,
+    "small_person": 0.2,
+    "needs_scribble": 0.2,
+}
+
 _quality_gates = quality_gates_from_config
 _decision_and_tags = decision_and_tags
 _mask_error_stats = mask_error_stats
@@ -177,7 +202,8 @@ def write_benchmark_contact_sheet(
     out_dir = Path(out_dir)
     if records is None:
         records = read_jsonl_list(out_dir / "benchmark_records.jsonl", model=BenchmarkRecord)
-    selected = sorted(records, key=lambda r: (r.mask_iou, r.boundary_f_score))[:max_items]
+    records = [_with_derived_fields(r) for r in records]
+    selected = sorted(records, key=lambda r: (-(r.review_priority or 0.0), r.mask_iou, r.boundary_f_score))[:max_items]
     out_path = out_path or (out_dir / "contact_sheet_worst.png")
     tile_height = int(round(tile_width * 0.75))
     rows: list[np.ndarray] = []
@@ -244,6 +270,121 @@ def _count_by(items: list[str]) -> dict[str, int]:
     return dict(sorted(out.items(), key=lambda kv: (-kv[1], kv[0])))
 
 
+def _area_bucket(area_ratio: float | None) -> Literal["tiny", "small", "medium", "large"] | None:
+    if area_ratio is None:
+        return None
+    if area_ratio < 0.001:
+        return "tiny"
+    if area_ratio < 0.01:
+        return "small"
+    if area_ratio < 0.08:
+        return "medium"
+    return "large"
+
+
+def _primary_error(tags: list[str]) -> str | None:
+    tag_set = set(tags)
+    for tag in PRIMARY_ERROR_ORDER:
+        if tag in tag_set:
+            return tag
+    return tags[0] if tags else None
+
+
+def _review_priority(record: BenchmarkRecord) -> float:
+    score = (1.0 - float(record.mask_iou)) + (0.5 * (1.0 - float(record.boundary_f_score)))
+    score += 0.4 * float(record.false_negative_ratio or 0.0)
+    score += 0.3 * float(record.false_positive_ratio or 0.0)
+    if record.decision == "reject":
+        score += 1.0
+    elif record.decision == "review":
+        score += 0.4
+    for tag in record.error_tags:
+        score += REVIEW_PRIORITY_TAG_WEIGHTS.get(tag, 0.0)
+    return round(max(0.0, score), 6)
+
+
+def _with_derived_fields(record: BenchmarkRecord) -> BenchmarkRecord:
+    update = {
+        "gt_area_bucket": _area_bucket(record.gt_area_ratio),
+        "primary_error": _primary_error(record.error_tags),
+    }
+    provisional = record.model_copy(update=update)
+    update["review_priority"] = _review_priority(provisional)
+    if (
+        record.gt_area_bucket == update["gt_area_bucket"]
+        and record.primary_error == update["primary_error"]
+        and record.review_priority == update["review_priority"]
+    ):
+        return record
+    return record.model_copy(update=update)
+
+
+def _record_metrics(records: list[BenchmarkRecord]) -> dict[str, object]:
+    decisions = _count_by([r.decision for r in records])
+    return {
+        "count": len(records),
+        "mean_mask_iou": _mean([r.mask_iou for r in records]),
+        "mean_boundary_f1": _mean([r.boundary_f_score for r in records]),
+        "mean_false_positive_ratio": _mean([r.false_positive_ratio or 0.0 for r in records]),
+        "mean_false_negative_ratio": _mean([r.false_negative_ratio or 0.0 for r in records]),
+        "mean_review_priority": _mean([r.review_priority or 0.0 for r in records]),
+        "accept": decisions.get("accept", 0),
+        "review": decisions.get("review", 0),
+        "reject": decisions.get("reject", 0),
+    }
+
+
+def _area_bucket_metrics(records: list[BenchmarkRecord]) -> dict[str, dict[str, object]]:
+    groups: dict[str, list[BenchmarkRecord]] = {}
+    for record in records:
+        bucket = record.gt_area_bucket or "unknown"
+        groups.setdefault(bucket, []).append(record)
+    return {
+        bucket: _record_metrics(group)
+        for bucket, group in sorted(groups.items(), key=lambda kv: (AREA_BUCKET_ORDER.get(kv[0], 99), kv[0]))
+    }
+
+
+def _tag_metrics(records: list[BenchmarkRecord]) -> dict[str, dict[str, object]]:
+    groups: dict[str, list[BenchmarkRecord]] = {}
+    for record in records:
+        for tag in record.error_tags:
+            groups.setdefault(tag, []).append(record)
+    return {
+        tag: _record_metrics(group)
+        for tag, group in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+    }
+
+
+def _primary_error_metrics(records: list[BenchmarkRecord]) -> dict[str, dict[str, object]]:
+    groups: dict[str, list[BenchmarkRecord]] = {}
+    for record in records:
+        groups.setdefault(record.primary_error or "none", []).append(record)
+    return {
+        tag: _record_metrics(group)
+        for tag, group in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+    }
+
+
+def _benchmark_row(record: BenchmarkRecord) -> dict[str, object]:
+    return {
+        "item_id": record.item_id,
+        "instance_id": record.instance_id,
+        "mask_iou": record.mask_iou,
+        "boundary_f_score": record.boundary_f_score,
+        "decision": record.decision,
+        "error_tags": record.error_tags,
+        "primary_error": record.primary_error,
+        "gt_area_bucket": record.gt_area_bucket,
+        "review_priority": record.review_priority,
+        "improvement_hint": record.improvement_hint,
+        "image_path": record.image_path,
+        "gt_mask_path": record.gt_mask_path,
+        "pred_mask_path": record.pred_mask_path,
+        "diff_mask_path": record.diff_mask_path,
+    }
+
+
 def _recommendations(error_buckets: dict[str, int], decision_counts: dict[str, int]) -> list[str]:
     recs: list[str] = []
     if error_buckets.get("detector_miss", 0):
@@ -271,6 +412,7 @@ def _build_summary(
     quality_gates: dict[str, float],
     worst_k: int,
 ) -> dict[str, object]:
+    records = [_with_derived_fields(r) for r in records]
     decision_counts = _count_by([r.decision for r in records])
     error_buckets = _count_by([tag for r in records for tag in r.error_tags])
     mean_iou = _mean([r.mask_iou for r in records])
@@ -278,6 +420,11 @@ def _build_summary(
     mean_ms = _mean([r.elapsed_ms for r in records])
     ips = len(records) / max(total_s, 1e-6)
     worst = sorted(records, key=lambda r: (r.mask_iou, r.boundary_f_score))[:worst_k]
+    top_review = sorted(
+        [r for r in records if r.decision in {"review", "reject"}],
+        key=lambda r: (r.review_priority or 0.0, 1.0 - r.mask_iou, 1.0 - r.boundary_f_score),
+        reverse=True,
+    )[:worst_k]
     return {
         "dataset": dataset,
         "instances": len(records),
@@ -288,6 +435,7 @@ def _build_summary(
         "mean_bbox_iou": _mean([r.bbox_iou for r in records if r.bbox_iou is not None]),
         "mean_false_positive_ratio": _mean([r.false_positive_ratio or 0.0 for r in records]),
         "mean_false_negative_ratio": _mean([r.false_negative_ratio or 0.0 for r in records]),
+        "mean_review_priority": _mean([r.review_priority or 0.0 for r in records]),
         "mask_iou_quantiles": _quantiles([r.mask_iou for r in records]),
         "boundary_f1_quantiles": _quantiles([r.boundary_f_score for r in records]),
         "decision_counts": decision_counts,
@@ -295,24 +443,13 @@ def _build_summary(
         "review_rate": float(decision_counts.get("review", 0)) / float(max(len(records), 1)),
         "reject_rate": float(decision_counts.get("reject", 0)) / float(max(len(records), 1)),
         "error_buckets": error_buckets,
+        "area_buckets": _area_bucket_metrics(records),
+        "tag_metrics": _tag_metrics(records),
+        "primary_error_buckets": _primary_error_metrics(records),
         "quality_gates": quality_gates,
         "recommendations": _recommendations(error_buckets, decision_counts),
-        "worst_records": [
-            {
-                "item_id": r.item_id,
-                "instance_id": r.instance_id,
-                "mask_iou": r.mask_iou,
-                "boundary_f_score": r.boundary_f_score,
-                "decision": r.decision,
-                "error_tags": r.error_tags,
-                "improvement_hint": r.improvement_hint,
-                "image_path": r.image_path,
-                "gt_mask_path": r.gt_mask_path,
-                "pred_mask_path": r.pred_mask_path,
-                "diff_mask_path": r.diff_mask_path,
-            }
-            for r in worst
-        ],
+        "worst_records": [_benchmark_row(r) for r in worst],
+        "top_review_records": [_benchmark_row(r) for r in top_review],
         "mean_elapsed_ms": mean_ms,
         "instances_per_second": ips,
         "total_seconds": total_s,
@@ -322,6 +459,9 @@ def _build_summary(
 def _summary_markdown(summary: dict[str, object]) -> str:
     decisions = summary.get("decision_counts", {})
     buckets = summary.get("error_buckets", {})
+    area_buckets = summary.get("area_buckets", {})
+    tag_metrics = summary.get("tag_metrics", {})
+    top_review = summary.get("top_review_records", [])
     worst = summary.get("worst_records", [])
     recs = summary.get("recommendations", [])
     lines = [
@@ -334,6 +474,7 @@ def _summary_markdown(summary: dict[str, object]) -> str:
         f"- mean boundary F1: **{float(summary['mean_boundary_f1']):.4f}**",
         f"- accept / review / reject: **{decisions.get('accept', 0)} / {decisions.get('review', 0)} / {decisions.get('reject', 0)}**",
         f"- mean FP / FN ratio: **{float(summary['mean_false_positive_ratio']):.4f} / {float(summary['mean_false_negative_ratio']):.4f}**",
+        f"- mean review priority: **{float(summary.get('mean_review_priority', 0.0)):.4f}**",
         f"- mean latency: **{float(summary['mean_elapsed_ms']):.1f} ms/instance**",
         f"- throughput: **{float(summary['instances_per_second']):.2f} inst/s**",
         "",
@@ -345,6 +486,50 @@ def _summary_markdown(summary: dict[str, object]) -> str:
         lines += [f"| `{k}` | {v} |" for k, v in buckets.items()]
     else:
         lines.append("_No error buckets._")
+    lines += ["", "## Area Buckets", ""]
+    if isinstance(area_buckets, dict) and area_buckets:
+        lines += [
+            "| bucket | count | IoU | BF1 | priority | accept/review/reject |",
+            "|---|---:|---:|---:|---:|---|",
+        ]
+        for bucket, row in area_buckets.items():
+            if not isinstance(row, dict):
+                continue
+            lines.append(
+                f"| `{bucket}` | {int(row.get('count', 0))} | "
+                f"{float(row.get('mean_mask_iou', 0.0)):.4f} | "
+                f"{float(row.get('mean_boundary_f1', 0.0)):.4f} | "
+                f"{float(row.get('mean_review_priority', 0.0)):.4f} | "
+                f"{int(row.get('accept', 0))}/{int(row.get('review', 0))}/{int(row.get('reject', 0))} |"
+            )
+    else:
+        lines.append("_No area buckets._")
+    lines += ["", "## Tag Metrics", ""]
+    if isinstance(tag_metrics, dict) and tag_metrics:
+        lines += ["| tag | count | IoU | BF1 | priority |", "|---|---:|---:|---:|---:|"]
+        for tag, row in list(tag_metrics.items())[:12]:
+            if not isinstance(row, dict):
+                continue
+            lines.append(
+                f"| `{tag}` | {int(row.get('count', 0))} | "
+                f"{float(row.get('mean_mask_iou', 0.0)):.4f} | "
+                f"{float(row.get('mean_boundary_f1', 0.0)):.4f} | "
+                f"{float(row.get('mean_review_priority', 0.0)):.4f} |"
+            )
+    else:
+        lines.append("_No tag metrics._")
+    lines += ["", "## Top Review Queue", ""]
+    if top_review:
+        lines += ["| item | inst | priority | IoU | BF1 | decision | primary |", "|---|---|---:|---:|---:|---|---|"]
+        for row in top_review:  # type: ignore[assignment]
+            lines.append(
+                f"| `{row['item_id']}` | `{row['instance_id']}` | "
+                f"{float(row.get('review_priority') or 0.0):.4f} | "
+                f"{float(row['mask_iou']):.4f} | {float(row['boundary_f_score']):.4f} | "
+                f"`{row['decision']}` | `{row.get('primary_error') or ''}` |"
+            )
+    else:
+        lines.append("_No review/reject records._")
     lines += ["", "## Recommendations", ""]
     lines += [f"- {r}" for r in recs] if recs else ["- Expand sample size."]
     lines += ["", "## Worst Records", ""]
@@ -515,32 +700,31 @@ def run_coconut_benchmark(
                     ],
                 )
             )
-            records.append(
-                BenchmarkRecord(
-                    item_id=sample.image_path.stem,
-                    instance_id=f"person_{person.instance_index}",
-                    image_path=str(sample.image_path),
-                    gt_mask_path=str(gt_mask_path),
-                    pred_mask_path=str(pred_mask_path) if write_masks else "",
-                    diff_mask_path=str(diff_mask_path) if write_masks else "",
-                    detector_mode=detector_mode,
-                    sam_mode=sam_mode,
-                    mask_iou=float(iou),
-                    boundary_f_score=float(bf1),
-                    bbox_iou=float(det_bbox_iou),
-                    gt_area_ratio=stats["gt_area_ratio"],
-                    pred_area_ratio=stats["pred_area_ratio"],
-                    false_positive_ratio=stats["false_positive_ratio"],
-                    false_negative_ratio=stats["false_negative_ratio"],
-                    prompt_confidence=float(prompt.confidence),
-                    needs_scribble=bool(prompt.needs_scribble),
-                    decision=decision,  # type: ignore[arg-type]
-                    error_tags=error_tags,
-                    improvement_hint=improvement_hint,
-                    elapsed_ms=float(elapsed_ms),
-                    quality_scores=quality_scores,
-                )
+            record = BenchmarkRecord(
+                item_id=sample.image_path.stem,
+                instance_id=f"person_{person.instance_index}",
+                image_path=str(sample.image_path),
+                gt_mask_path=str(gt_mask_path),
+                pred_mask_path=str(pred_mask_path) if write_masks else "",
+                diff_mask_path=str(diff_mask_path) if write_masks else "",
+                detector_mode=detector_mode,
+                sam_mode=sam_mode,
+                mask_iou=float(iou),
+                boundary_f_score=float(bf1),
+                bbox_iou=float(det_bbox_iou),
+                gt_area_ratio=stats["gt_area_ratio"],
+                pred_area_ratio=stats["pred_area_ratio"],
+                false_positive_ratio=stats["false_positive_ratio"],
+                false_negative_ratio=stats["false_negative_ratio"],
+                prompt_confidence=float(prompt.confidence),
+                needs_scribble=bool(prompt.needs_scribble),
+                decision=decision,  # type: ignore[arg-type]
+                error_tags=error_tags,
+                improvement_hint=improvement_hint,
+                elapsed_ms=float(elapsed_ms),
+                quality_scores=quality_scores,
             )
+            records.append(_with_derived_fields(record))
         ann_rows.append(AnnotationRecord(item_id=sample.image_path.stem, instances=instances))
 
     total_s = time.perf_counter() - t0
@@ -594,7 +778,7 @@ def backfill_benchmark_records(
     updated: list[BenchmarkRecord] = []
     for record in records:
         if not _record_needs_backfill(record):
-            updated.append(record)
+            updated.append(_with_derived_fields(record))
             continue
         iou = float(record.mask_iou)
         bf1 = float(record.boundary_f_score)
@@ -619,14 +803,16 @@ def backfill_benchmark_records(
             pred_empty=iou <= 0.0 and bf1 <= 0.0,
         )
         updated.append(
-            record.model_copy(
-                update={
-                    "decision": decision,
-                    "error_tags": error_tags,
-                    "improvement_hint": hint,
-                    "false_positive_ratio": stats["false_positive_ratio"],
-                    "false_negative_ratio": stats["false_negative_ratio"],
-                }
+            _with_derived_fields(
+                record.model_copy(
+                    update={
+                        "decision": decision,
+                        "error_tags": error_tags,
+                        "improvement_hint": hint,
+                        "false_positive_ratio": stats["false_positive_ratio"],
+                        "false_negative_ratio": stats["false_negative_ratio"],
+                    }
+                )
             )
         )
     return updated
@@ -680,6 +866,11 @@ def export_benchmark_review_queue(
     gates = quality_gates_from_config()
     records = backfill_benchmark_records(records, gates=gates)
     review_path = review_path or (out_dir / "review_queue.jsonl")
+    queue_records = sorted(
+        [r for r in records if r.decision in decisions],
+        key=lambda r: (r.review_priority or 0.0, 1.0 - r.mask_iou, 1.0 - r.boundary_f_score),
+        reverse=True,
+    )
     rows = [
         {
             "item_id": r.item_id,
@@ -691,13 +882,15 @@ def export_benchmark_review_queue(
             "decision": r.decision,
             "mask_iou": r.mask_iou,
             "boundary_f_score": r.boundary_f_score,
+            "gt_area_bucket": r.gt_area_bucket,
+            "primary_error": r.primary_error,
+            "review_priority": r.review_priority,
             "error_tags": r.error_tags,
             "improvement_hint": r.improvement_hint,
             "quality_scores": r.quality_scores,
             "suggested_actions": ["prompt_correction", "SAM2_repropagation", "boundary_paint"],
         }
-        for r in records
-        if r.decision in decisions
+        for r in queue_records
     ]
     write_jsonl(review_path, rows, overwrite=True)
     log.info("Exported %d benchmark review items -> %s", len(rows), review_path)

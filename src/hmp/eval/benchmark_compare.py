@@ -50,16 +50,52 @@ def _is_oracle_mode(row: dict[str, object]) -> bool:
     return str(row.get("sam_mode", "")) in {"oracle", "noisy_oracle"}
 
 
+def _apply_production_preference(
+    rows: list[dict[str, object]],
+    compare_cfg: object,
+) -> dict[str, object] | None:
+    """Prefer end-to-end detector when its score is within margin of the best mode."""
+    if not rows:
+        return None
+    prefer_det = "yolo_person"
+    margin = 0.03
+    if hasattr(compare_cfg, "get"):
+        prefer_det = str(compare_cfg.get("prefer_production_detector", prefer_det))
+        margin = float(compare_cfg.get("production_score_margin", margin))
+    best_score = float(rows[0]["mode_score"])
+    pool = [row for row in rows if float(row["mode_score"]) >= best_score - margin]
+    for sam_mode in ("sam2", "grabcut"):
+        for row in pool:
+            if row["detector_mode"] == prefer_det and row["sam_mode"] == sam_mode:
+                return row
+    for row in pool:
+        if row["detector_mode"] == prefer_det:
+            return row
+    return rows[0]
+
+
 def _select_best_mode(rows: list[dict[str, object]], compare_cfg: object) -> tuple[dict[str, object] | None, dict[str, object]]:
     allow_oracle = bool(compare_cfg.get("allow_oracle_selection", False)) if hasattr(compare_cfg, "get") else False
     selectable = rows if allow_oracle else [row for row in rows if not _is_oracle_mode(row)]
     if not selectable:
         selectable = rows
-    best = selectable[0] if selectable else None
+    ranked = sorted(selectable, key=lambda r: float(r["mode_score"]), reverse=True)
+    best = _apply_production_preference(ranked, compare_cfg)
     policy = {
         "allow_oracle_selection": allow_oracle,
         "oracle_modes_excluded": bool(rows and not allow_oracle and any(_is_oracle_mode(row) for row in rows) and selectable != rows),
         "selection_pool_size": len(selectable),
+        "prefer_production_detector": (
+            str(compare_cfg.get("prefer_production_detector", "yolo_person"))
+            if hasattr(compare_cfg, "get")
+            else "yolo_person"
+        ),
+        "production_score_margin": (
+            float(compare_cfg.get("production_score_margin", 0.03))
+            if hasattr(compare_cfg, "get")
+            else 0.03
+        ),
+        "top_mode_score": float(ranked[0]["mode_score"]) if ranked else 0.0,
     }
     return best, policy
 
@@ -83,13 +119,18 @@ def _next_actions(best_summary: dict[str, object]) -> list[str]:
 
 
 def _config_patch(best: dict[str, object], best_summary: dict[str, object]) -> dict[str, object]:
+    gates = best_summary.get("quality_gates", {})
     patch: dict[str, object] = {
         "coconut_benchmark": {
             "detector_mode": best["detector_mode"],
             "sam_mode": best["sam_mode"],
-            "quality_gates": best_summary.get("quality_gates", {}),
+            "quality_gates": gates,
             "write_masks": True,
-        }
+        },
+        "labeling": {
+            "segment_mode": best["sam_mode"],
+            "quality_gates": gates,
+        },
     }
     buckets = best_summary.get("error_buckets", {})
     if isinstance(buckets, dict) and buckets.get("background_leak", 0):

@@ -6,7 +6,24 @@
 2. 训练人体 matting 要把 `alpha supervision`、`segmentation core supervision`、`boundary supervision`、`temporal supervision` 分开管理。
 3. 二次重标注的关键不是样本量，而是质量评估。没有 quality evaluator 的自动 alpha 生成很容易把脏 label 放大。
 
-对应的机器可读 registry 在 [configs/datasets.yaml](/home/genesis/Train/Code/segPipeline/configs/datasets.yaml)。
+对应的机器可读 registry 在 [configs/datasets.yaml](/home/genesis/Train/Code/segPipeline/configs/datasets.yaml)。**模型分层**（端侧 vs GPU teacher）见 [MODEL_TIERS_zh.md](/home/genesis/Train/Code/segPipeline/MODEL_TIERS_zh.md) 与 [configs/models.yaml](/home/genesis/Train/Code/segPipeline/configs/models.yaml)。
+
+## 模型分层（端侧 vs GPU Teacher）
+
+| 角色 | 模型 | 环境 | 用途 |
+| --- | --- | --- | --- |
+| **Edge 学生（部署）** | `yolo26s-seg` | RK3576 / 移动端 | 在线分割推理 |
+| **检测（auto-label）** | `yolo26s-seg` | GPU | 仅出 person bbox，不直接当最终 mask |
+| **Segment Teacher** | SAM2 | GPU | 默认 auto-label mask |
+| **Boundary Teacher** | SamHQ | GPU | bad_boundary / review 重标 |
+| **Distill Teacher** | `yolo26x-seg` | GPU 训练 | ultralytics/ 蒸馏 teacher，非部署 |
+| **Ablation** | GrabCut | CPU | benchmark 对照，禁止生产 |
+
+```text
+GPU 标注链路：yolo26s-seg 检测框 → SAM2/SamHQ 生成 mask → QA 门控 → 清洗 mask JSONL
+端侧部署：蒸馏后的 yolo26s-seg（RK3576 ONNX/RKNN）
+蒸馏训练：yolo26x-seg teacher → yolo26s-seg student（见 ultralytics/distill_model.py）
+```
 
 ## 优先路线
 
@@ -14,12 +31,12 @@
 
 ```text
 COCO-ReM / COCONut / SA-V
-  -> person detector / GroundingDINO
-  -> SAM2 / HQ-SAM person mask or masklet
+  -> yolo26s-seg person detector（edge 同架构，GPU 跑框）
+  -> SAM2 / SamHQ GPU teacher mask or masklet
   -> SEMat / MatAnyone2-style alpha generation
   -> MQE-style quality scoring + human spot checks
   -> HIM-100K + HHM50K + COCO-Matting + VMReal joint training
-  -> lightweight video matting student distillation
+  -> yolo26x-seg distill teacher → yolo26s-seg 端侧 student
 ```
 
 这条路线比只堆 P3M-10K 或 VideoMatte240K 更接近真实视频产品场景：多人、遮挡、复杂背景、长时跟踪、头发和衣物边界同时存在。
@@ -103,16 +120,16 @@ Instance separation loss:
    shot detection / dedup / resolution / motion / 分桶
 
 2. 人体发现与目标指定
-   detector / GroundingDINO / pose / face / person classifier
+   yolo26s-seg detector / GroundingDINO / pose / face / person classifier
 
 3. RL Prompt Agent
    keyframe / box / positive point / negative point / mask / scribble gate
 
-4. 视频 masklet 生成
-   SAM2 / VOS / XMem / Cutie
+4. GPU segment teacher（SAM2 / SamHQ）
+   bbox prompt → mask；review/bad_boundary 可切换 SamHQ
 
 5. masklet 修正
-   SAM2 correction / SAMRefiner / HQ-SAM / temporal & identity check
+   SAM2 correction / SAMRefiner / SamHQ / temporal & identity check
 
 6. Matting-critical region
    adaptive trimap + ROI + edge/hair/motion unknown band
@@ -140,9 +157,11 @@ Instance separation loss:
 ### 已实现 CLI
 
 ```text
+hmp config models                        # 查看 edge / teacher 分层
 hmp dataset ingest / stratify
 hmp label dummy
-hmp label yolo-sam2 --segment-mode sam2|grabcut
+hmp label yolo-sam2 --segment-mode sam2|samhq|grabcut
+hmp label yolo-sam2 --teacher samhq       # SamHQ boundary 重标
 hmp refine masks
 hmp matting make-adaptive-trimap
 hmp relabel queue / hitl-queue / export-labels
@@ -156,11 +175,13 @@ hmp eval coconut-import-annotations   # benchmark → annotations_raw.jsonl
 hmp eval coconut-export-hitl          # review/reject → HITL queue
 hmp eval coconut-apply-patch          # merge next_config_patch.yaml
 hmp dataset coconut-sample            # COCONut val → manifest (step 0)
-hmp pipeline run-relabel --provider mock|yolo_grabcut|yolo_sam2
+hmp pipeline bootstrap-from-benchmark # benchmark → manifest/annotations/HITL
+bash scripts/run_coconut_relabel_e2e.sh mock|yolo_sam2
+hmp pipeline run-relabel --provider mock|yolo_grabcut|yolo_sam2|yolo_samhq
 hmp pipeline stages
 ```
 
-完整 12 阶段设计见 [PIPELINE_v2_zh.md](/home/genesis/Train/Code/segPipeline/PIPELINE_v2_zh.md)；模块依赖与数据流见 [CODEMAP_zh.md](/home/genesis/Train/Code/segPipeline/CODEMAP_zh.md)。
+完整 12 阶段设计见 [PIPELINE_v2_zh.md](/home/genesis/Train/Code/segPipeline/PIPELINE_v2_zh.md)；模块依赖与数据流见 [CODEMAP_zh.md](/home/genesis/Train/Code/segPipeline/CODEMAP_zh.md)；模型分层见 [MODEL_TIERS_zh.md](/home/genesis/Train/Code/segPipeline/MODEL_TIERS_zh.md)。
 
 ### COCONut 自动标注 Benchmark（2026-07-05）
 
@@ -196,16 +217,18 @@ PYTHONPATH=src hmp eval coconut-iterate --config configs/coconut_benchmark.yaml
 - `runs/coconut_compare/next_config_patch.yaml` — 可直接合并到 pipeline 配置
 - `runs/coconut_compare/*/__mode__/review_queue.jsonl` — 待修正样本
 
-**策略结论**：COCONut hard mask 适合作为 segmentation-core 监督；GrabCut 不能替代 SAM2。端到端应用 `yolo26s-seg + SAM2`，review/reject 样本走 HITL + prompt-agent 闭环，再进入 Bv/Bi/Bd/Bs alpha 分支。
+**策略结论**：COCONut hard mask 适合作为 segmentation-core 监督；GrabCut 不能替代 SAM2。端到端：**端侧部署 yolo26s-seg**；auto-label / 清洗 / 蒸馏 teacher 用 **GPU SAM2/SamHQ**（见 [MODEL_TIERS_zh.md](/home/genesis/Train/Code/segPipeline/MODEL_TIERS_zh.md)）。review/reject 样本走 HITL + prompt-agent 闭环，bad_boundary 可切换 SamHQ 重标，再进入 Bv/Bi/Bd/Bs alpha 分支。
 
 ### 下一步接真实数据
 
 1. ~~增加 dataset registry loader~~（已有 `configs/datasets.yaml` + `hmp dataset ingest`）
 2. ~~COCONut benchmark~~（已完成；持续扩大 limit 与 hard bucket）
-3. 将 benchmark 选中的 `yolo_sam2` 模式接入 `hmp pipeline run-relabel --provider yolo_sam2`
-4. 用 `hmp eval coconut-export-review` 导出 review 队列，收集 scribble/point 修正作为 prompt-agent 训练数据
+3. ~~将 benchmark 选中的 `yolo_sam2` 模式接入 pipeline~~（`hmp pipeline bootstrap-from-benchmark` + `run_coconut_relabel_e2e.sh`）
+4. 用 `bootstrap-from-benchmark` / `coconut-export-review` 导出 review 队列，收集 scribble/point 修正；bad_boundary 用 `--teacher samhq` 重标
 5. 用 `hmp eval mqe` + `hmp matting fuse-alpha` 在 accept 样本上验证 mask→matte 质量
-6. 从 SA-V / COCO-ReM 扩展 ingest，按 stratify bucket 追加 relabel queue
+6. benchmark 增加 `yolo_person × samhq` 模式，量化边界 teacher 收益
+7. 从 SA-V / COCO-ReM 扩展 ingest，按 stratify bucket 追加 relabel queue
+8. accept 清洗 mask → ultralytics COCONut 蒸馏（yolo26x-seg → yolo26s-seg）
 
 ## 风险清单
 

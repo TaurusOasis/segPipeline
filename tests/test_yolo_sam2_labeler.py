@@ -37,6 +37,7 @@ def test_make_labeler_providers(tmp_path):
     assert make_labeler(cfg, project_root=tmp_path, provider="mock").name == "dummy"
     assert make_labeler(cfg, project_root=tmp_path, provider="yolo_sam2").segment_mode == "sam2"
     assert make_labeler(cfg, project_root=tmp_path, provider="yolo_grabcut").segment_mode == "grabcut"
+    assert make_labeler(cfg, project_root=tmp_path, provider="yolo_samhq").teacher_key == "samhq"
 
 
 def test_yolo_sam2_labeler_mocked(tmp_path, monkeypatch):
@@ -55,17 +56,17 @@ def test_yolo_sam2_labeler_mocked(tmp_path, monkeypatch):
     image = np.zeros((96, 64, 3), dtype=np.uint8)
     monkeypatch.setattr(labeler, "_read_image_bgr", lambda item: image)
     monkeypatch.setattr(
-        "hmp.labeling.yolo_sam2_labeler.detect_persons",
+        "hmp.labeling.yolo_sam2_labeler.detect_persons_for_image",
         lambda *a, **k: [PersonDetection(bbox_xyxy=[16, 20, 48, 80], score=0.92)],
     )
     monkeypatch.setattr(
-        "hmp.labeling.yolo_sam2_labeler.segment_with_prompts",
+        "hmp.labeling.auto_label_core.segment_with_teacher",
         lambda img, decision, **kw: np.ones((96, 64), dtype=bool),
     )
 
     instances = labeler.label_one(_item())
     assert len(instances) == 1
-    assert instances[0].source == "yolo+grabcut"
+    assert instances[0].source == "yolo+mock_grabcut"
     assert instances[0].prompt_history
     assert Path(instances[0].mask_path).exists()
 

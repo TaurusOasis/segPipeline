@@ -21,6 +21,7 @@ data/masks_refined/
 data/yolo_seg/
 data/alpha/
 data/calibration/
+data/coconut/
 runs/
 *.onnx
 *.rknn

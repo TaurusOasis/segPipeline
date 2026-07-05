@@ -23,7 +23,7 @@ pytest
 
 - [ ] Step 08: Add CleanVision / fastdup curation adapters
 - [ ] Step 09: Add Ultralytics auto_annotate adapter
-- [ ] Step 10: Add SAM3 and Grounded-SAM-2 external command adapters
+- [ ] Step 10: Add SAM2 / Grounded-SAM-2 external command adapters
 - [ ] Step 11: Add HQ-SAM adapter
 - [ ] Step 12: Implement mask refinement pipeline
 - [ ] Step 13: Implement quality scoring and review queue
@@ -35,6 +35,31 @@ hmp label ultralytics-auto --config configs/labeling.yaml --dry-run
 hmp label sam3 --config configs/labeling.yaml --dry-run
 hmp refine masks --config configs/refine.yaml
 hmp review build --config configs/curation.yaml
+pytest
+```
+
+## Milestone 2.5: Open-source offline labeling engine
+
+Reference map: `OPEN_SOURCE_INTEGRATION_TARGETS_zh.md` and `configs/reference_integrations.yaml`.
+
+- [ ] Add adapter base contract for external repos: command template, env vars, input/output mapping, dry-run
+- [ ] Add person discovery adapters: Grounded-SAM-2 / GroundingDINO / YOLO
+- [ ] Add video masklet adapters: SAM2 first, Cutie/XMem fallback
+- [ ] Add mask refinement adapters: SAMRefiner / HQ-SAM / CascadePSP
+- [ ] Add alpha teacher adapters: MatAnyone or MaGGIe for Bv, SEMat or Matting Anything for Bi
+- [ ] Add diffusion refine adapter: VideoMaMa or DiffMatte as Bd, ROI-only with core clamps
+- [ ] Add temporal QA adapter: RAFT or GMFlow, with frame-diff fallback for CPU smoke tests
+- [ ] Add HITL export/import bridge: CVAT or Label Studio plus FiftyOne review view
+- [ ] Add license/provenance checks for each external output
+
+Acceptance:
+
+```bash
+hmp eval coconut-iterate --config configs/coconut_benchmark.yaml
+hmp eval coconut-export-review --benchmark-dir runs/coconut_benchmark
+hmp relabel queue --config configs/pipeline.yaml
+hmp matting process-queue --config configs/pipeline.yaml --provider mock
+hmp relabel export-labels --config configs/pipeline.yaml
 pytest
 ```
 

@@ -6,6 +6,8 @@
 - 统一配置：`configs/pipeline.yaml`
 - 数据策略：`DATASET_STRATEGY_zh.md`
 - 数据集 registry：`configs/datasets.yaml`
+- 开源 adapter 落地目标：`OPEN_SOURCE_INTEGRATION_TARGETS_zh.md`
+- 参考代码 registry：`configs/reference_integrations.yaml`
 
 核心原则不变：**hard mask ≠ alpha matte**。Pipeline 的目标是把视频/图像里的 person instance，经过 masklet、trimap、多 teacher alpha、质量评估与 HITL，最终输出可监督训练的 alpha label。
 

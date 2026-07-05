@@ -1,0 +1,82 @@
+project:
+  name: coconut-relabel-e2e
+  root: .
+  seed: 42
+
+paths:
+  raw_dir: data/coconut/raw
+  manifest_path: data/coconut/manifests/val128.jsonl
+  annotation_path: data/coconut/annotations/annotations_raw.jsonl
+  refined_annotation_path: data/coconut/annotations/annotations_refined.jsonl
+  masks_raw_dir: data/coconut/masks_raw
+  masks_refined_dir: data/coconut/masks_refined
+  alpha_dir: data/coconut/alpha
+  runs_dir: runs
+
+coconut_sample:
+  manifest_path: data/coconut/manifests/val128.jsonl
+  limit: 128
+  seed: 42
+
+coconut_bridge:
+  compare_output_dir: runs/coconut_compare
+  mode: yolo_person__sam2
+  import_decisions: [accept, review]
+  hitl_decisions: [review, reject]
+
+labeling:
+  yolo_weights: /home/genesis/Train/Code/ultralytics/yolo26s-seg.pt
+  yolo_conf: 0.25
+  yolo_iou: 0.7
+  segment_teacher: sam2
+  boundary_teacher: samhq
+  teacher_weights: sam2_b.pt
+  sam2_weights: sam2_b.pt
+  segment_mode: sam2
+  device: 0
+  max_instances: 16
+  quality_gates:
+    min_accept_iou: 0.85
+    min_accept_boundary_f1: 0.85
+    min_review_iou: 0.50
+    min_review_boundary_f1: 0.65
+    max_accept_false_positive_ratio: 0.25
+    max_accept_false_negative_ratio: 0.25
+
+local_postprocess:
+  remove_small_components: true
+  min_component_area: 16
+  fill_holes: true
+  keep_largest_component: true
+
+refine:
+  report_path: data/coconut/annotations/refine_report.jsonl
+
+adaptive_trimap:
+  output_dir: data/coconut/alpha/adaptive_trimaps
+  roi_dir: data/coconut/alpha/roi
+  base_radius: 8
+  max_radius: 24
+
+trimap:
+  output_dir: data/coconut/alpha/trimaps
+  radius: 6
+
+relabel:
+  queue_path: data/coconut/alpha/relabel_queue.jsonl
+  alpha_output_dir: data/coconut/alpha/mattes
+  fused_alpha_dir: data/coconut/alpha/fused
+  bbox_output_dir: data/coconut/alpha/bboxes
+  eval_map_output_dir: data/coconut/alpha/eval_maps
+  hitl_queue_path: data/coconut/alpha/hitl_queue.jsonl
+  labels_path: data/coconut/alpha/alpha_labels.jsonl
+  write_bbox_sidecars: true
+
+hitl:
+  queue_path: data/coconut/alpha/hitl_queue.jsonl
+
+mqe:
+  output_path: data/coconut/alpha/mqe_report.jsonl
+
+logging:
+  level: INFO

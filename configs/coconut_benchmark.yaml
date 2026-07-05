@@ -46,6 +46,8 @@ coconut_compare:
   skip_existing: true
   force_rerun: false
   allow_oracle_selection: false
+  prefer_production_detector: yolo_person
+  production_score_margin: 0.03
   modes:
     - [gt_bbox, grabcut]
     - [gt_bbox, sam2]

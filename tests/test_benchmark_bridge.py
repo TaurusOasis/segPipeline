@@ -10,6 +10,32 @@ from hmp.eval.benchmark_bridge import apply_iteration_patch, import_benchmark_an
 from hmp.schemas import AnnotationRecord, InstanceAnnotation
 
 
+def test_filter_annotation_records_by_decision():
+    from hmp.eval.benchmark_bridge import filter_annotation_records
+
+    records = [
+        AnnotationRecord(
+            item_id="img",
+            instances=[
+                InstanceAnnotation(
+                    instance_id="p0",
+                    bbox_xyxy=[0, 0, 10, 10],
+                    prompt_history=[{"decision": "accept"}],
+                ),
+                InstanceAnnotation(
+                    instance_id="p1",
+                    bbox_xyxy=[1, 1, 11, 11],
+                    prompt_history=[{"decision": "reject"}],
+                ),
+            ],
+        )
+    ]
+    kept = filter_annotation_records(records, decisions=("accept",))
+    assert len(kept) == 1
+    assert len(kept[0].instances) == 1
+    assert kept[0].instances[0].instance_id == "p0"
+
+
 def test_import_benchmark_annotations(tmp_path):
     benchmark_dir = tmp_path / "bench"
     benchmark_dir.mkdir()
@@ -59,3 +85,72 @@ def test_apply_iteration_patch_merges_nested_keys(tmp_path):
     assert merged["labeling"]["yolo_conf"] == 0.25
     assert merged["labeling"]["quality_gates"]["min_accept_iou"] == 0.80
     assert merged["coconut_benchmark"]["limit"] == 128
+
+
+def test_bootstrap_from_benchmark(tmp_path):
+    benchmark_dir = tmp_path / "bench"
+    benchmark_dir.mkdir()
+    write_jsonl(
+        benchmark_dir / "manifest.jsonl",
+        [
+            {
+                "item_id": "img1",
+                "media_type": "image",
+                "path": "/tmp/img1.jpg",
+                "width": 64,
+                "height": 64,
+                "sha256": "abc",
+            }
+        ],
+    )
+    write_jsonl(
+        benchmark_dir / "annotations_pred.jsonl",
+        [
+            AnnotationRecord(
+                item_id="img1",
+                instances=[
+                    InstanceAnnotation(
+                        instance_id="person_0",
+                        bbox_xyxy=[0, 0, 10, 10],
+                        mask_path=str(tmp_path / "pred.png"),
+                        prompt_history=[{"decision": "accept"}],
+                    ),
+                    InstanceAnnotation(
+                        instance_id="person_1",
+                        bbox_xyxy=[1, 1, 11, 11],
+                        prompt_history=[{"decision": "reject"}],
+                    ),
+                ],
+            )
+        ],
+    )
+    write_jsonl(
+        benchmark_dir / "review_queue.jsonl",
+        [
+            {
+                "item_id": "img1",
+                "instance_id": "person_1",
+                "image_path": "/tmp/img1.jpg",
+                "decision": "reject",
+            }
+        ],
+    )
+    cfg = Config(
+        {
+            "paths": {
+                "manifest_path": str(tmp_path / "manifest.jsonl"),
+                "annotation_path": str(tmp_path / "annotations.jsonl"),
+            },
+            "relabel": {"hitl_queue_path": str(tmp_path / "hitl.jsonl")},
+            "coconut_bridge": {"benchmark_dir": str(benchmark_dir), "import_decisions": ["accept"]},
+        }
+    )
+    from hmp.eval.benchmark_bridge import bootstrap_from_benchmark
+
+    out = bootstrap_from_benchmark(cfg, project_root=tmp_path)
+    anns = read_jsonl_list(out["annotation_path"], model=AnnotationRecord)
+    assert len(anns) == 1
+    assert len(anns[0].instances) == 1
+    hitl = read_jsonl_list(out["hitl_path"])
+    assert len(hitl) == 1
+    assert hitl[0]["decision"] == "reject"

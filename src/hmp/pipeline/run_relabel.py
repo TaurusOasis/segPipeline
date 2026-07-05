@@ -67,14 +67,14 @@ def run_relabel_pipeline(
             build_manifest(cfg, project_root=root, overwrite=True)
 
     if from_stage <= 3 <= to_stage:
-        if provider in {"yolo_sam2", "yolo_grabcut"}:
+        if provider in {"yolo_sam2", "yolo_grabcut", "yolo_samhq"}:
             log.info("[stage 3] rl_prompt_agent executed inside %s labeler", provider)
             results.append((3, "rl_prompt_agent", f"via_{provider}_labeler"))
         else:
             log.info("[stage 3] rl_prompt_agent is recorded in relabel queue prompt_history")
             results.append((3, "rl_prompt_agent", "recorded_in_queue"))
     if from_stage <= 4 <= to_stage:
-        if provider in {"yolo_sam2", "yolo_grabcut"}:
+        if provider in {"yolo_sam2", "yolo_grabcut", "yolo_samhq"}:
             log.info("[stage 4] sam2_vos_masklet executed inside %s labeler", provider)
             results.append((4, "sam2_vos_masklet", f"via_{provider}_labeler"))
         else:

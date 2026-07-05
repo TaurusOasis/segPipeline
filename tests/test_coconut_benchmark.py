@@ -64,6 +64,9 @@ def test_coconut_benchmark_runs_on_real_subset(tmp_path):
     assert summary["mean_mask_iou"] >= 0.99
     assert summary["decision_counts"]["accept"] >= 1
     assert "error_buckets" in summary
+    assert "area_buckets" in summary
+    assert "tag_metrics" in summary
+    assert "top_review_records" in summary
     assert "recommendations" in summary
     records = read_jsonl_list(out, model=BenchmarkRecord)
     assert records[0].pred_mask_path
@@ -73,6 +76,8 @@ def test_coconut_benchmark_runs_on_real_subset(tmp_path):
     assert Path(records[0].gt_mask_path).exists()
     assert Path(records[0].diff_mask_path).exists()
     assert records[0].decision == "accept"
+    assert records[0].gt_area_bucket in {"tiny", "small", "medium", "large"}
+    assert records[0].review_priority is not None
 
 
 def test_coconut_benchmark_cli(tmp_path):

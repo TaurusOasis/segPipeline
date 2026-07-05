@@ -90,10 +90,21 @@ labeling:
   yolo_weights: /home/genesis/Train/Code/ultralytics/yolo26s-seg.pt
   yolo_conf: 0.25
   yolo_iou: 0.7
+  segment_teacher: sam2
+  teacher_weights: sam2_b.pt
+  boundary_teacher: samhq
   sam2_weights: sam2_b.pt
   segment_mode: sam2
   device: 0
   max_instances: 16
+
+models:
+  edge:
+    name: yolo26s-seg
+    weights: /home/genesis/Train/Code/ultralytics/yolo26s-seg.pt
+  labeling_defaults:
+    segment_teacher: sam2
+    boundary_teacher: samhq
 
 logging:
   level: INFO
