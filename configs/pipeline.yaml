@@ -1,6 +1,6 @@
 # Full 12-stage RL + diffusion mask-to-matte relabeling pipeline (steps 0-11).
 # Machine-readable stage registry: src/hmp/pipeline/stages.py
-# Human-readable guide: PIPELINE_zh.md
+# Human-readable guide: doc/PIPELINE_zh.md
 
 project:
   name: human-matting-pipeline

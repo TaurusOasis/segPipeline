@@ -6,7 +6,7 @@
 2. 训练人体 matting 要把 `alpha supervision`、`segmentation core supervision`、`boundary supervision`、`temporal supervision` 分开管理。
 3. 二次重标注的关键不是样本量，而是质量评估。没有 quality evaluator 的自动 alpha 生成很容易把脏 label 放大。
 
-对应的机器可读 registry 在 [configs/datasets.yaml](/home/genesis/Train/Code/segPipeline/configs/datasets.yaml)。**模型分层**（端侧 vs GPU teacher）见 [MODEL_TIERS_zh.md](/home/genesis/Train/Code/segPipeline/MODEL_TIERS_zh.md) 与 [configs/models.yaml](/home/genesis/Train/Code/segPipeline/configs/models.yaml)。
+对应的机器可读 registry 在 [configs/datasets.yaml](/home/genesis/Train/Code/segPipeline/configs/datasets.yaml)。**模型分层**（端侧 vs GPU teacher）见 [MODEL_TIERS_zh.md](/home/genesis/Train/Code/segPipeline/doc/MODEL_TIERS_zh.md) 与 [configs/models.yaml](/home/genesis/Train/Code/segPipeline/configs/models.yaml)。
 
 ## 模型分层（端侧 vs GPU Teacher）
 
@@ -109,7 +109,7 @@ Instance separation loss:
 
 ## 二次重标注 Pipeline
 
-完整 12 阶段设计见 [PIPELINE_v2_zh.md](/home/genesis/Train/Code/segPipeline/PIPELINE_v2_zh.md)。旧版 8 步简化流程仍可作为 image-only 快速路径，但视频 alpha 重标注应走完整 12 阶段。
+完整 12 阶段设计见 [PIPELINE_v2_zh.md](/home/genesis/Train/Code/segPipeline/doc/PIPELINE_v2_zh.md)。旧版 8 步简化流程仍可作为 image-only 快速路径，但视频 alpha 重标注应走完整 12 阶段。
 
 ```text
 0. 数据源采样
@@ -181,7 +181,7 @@ hmp pipeline run-relabel --provider mock|yolo_grabcut|yolo_sam2|yolo_samhq
 hmp pipeline stages
 ```
 
-完整 12 阶段设计见 [PIPELINE_v2_zh.md](/home/genesis/Train/Code/segPipeline/PIPELINE_v2_zh.md)；模块依赖与数据流见 [CODEMAP_zh.md](/home/genesis/Train/Code/segPipeline/CODEMAP_zh.md)；模型分层见 [MODEL_TIERS_zh.md](/home/genesis/Train/Code/segPipeline/MODEL_TIERS_zh.md)。
+完整 12 阶段设计见 [PIPELINE_v2_zh.md](/home/genesis/Train/Code/segPipeline/doc/PIPELINE_v2_zh.md)；模块依赖与数据流见 [CODEMAP_zh.md](/home/genesis/Train/Code/segPipeline/doc/CODEMAP_zh.md)；模型分层见 [MODEL_TIERS_zh.md](/home/genesis/Train/Code/segPipeline/doc/MODEL_TIERS_zh.md)。
 
 ### COCONut 自动标注 Benchmark（2026-07-05）
 
@@ -217,7 +217,7 @@ PYTHONPATH=src hmp eval coconut-iterate --config configs/coconut_benchmark.yaml
 - `runs/coconut_compare/next_config_patch.yaml` — 可直接合并到 pipeline 配置
 - `runs/coconut_compare/*/__mode__/review_queue.jsonl` — 待修正样本
 
-**策略结论**：COCONut hard mask 适合作为 segmentation-core 监督；GrabCut 不能替代 SAM2。端到端：**端侧部署 yolo26s-seg**；auto-label / 清洗 / 蒸馏 teacher 用 **GPU SAM2/SamHQ**（见 [MODEL_TIERS_zh.md](/home/genesis/Train/Code/segPipeline/MODEL_TIERS_zh.md)）。review/reject 样本走 HITL + prompt-agent 闭环，bad_boundary 可切换 SamHQ 重标，再进入 Bv/Bi/Bd/Bs alpha 分支。
+**策略结论**：COCONut hard mask 适合作为 segmentation-core 监督；GrabCut 不能替代 SAM2。端到端：**端侧部署 yolo26s-seg**；auto-label / 清洗 / 蒸馏 teacher 用 **GPU SAM2/SamHQ**（见 [MODEL_TIERS_zh.md](/home/genesis/Train/Code/segPipeline/doc/MODEL_TIERS_zh.md)）。review/reject 样本走 HITL + prompt-agent 闭环，bad_boundary 可切换 SamHQ 重标，再进入 Bv/Bi/Bd/Bs alpha 分支。
 
 ### 下一步接真实数据
 

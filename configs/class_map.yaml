@@ -1,6 +1,6 @@
 version: 1
 last_updated: "2026-07-05"
-source_doc: "LABEL_SPEC_zh.md"
+source_doc: "doc/LABEL_SPEC_zh.md"
 
 export_defaults:
   target_format: "yolo_segmentation"

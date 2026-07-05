@@ -61,16 +61,18 @@ hmp eval coconut-iterate --config configs/coconut_benchmark.yaml
 hmp pipeline stages
 ```
 
-See `CODE_TARGETS_MEM_zh.md` for the current code-target memory and layer
-boundaries. `LABEL_SPEC_zh.md`, `configs/class_map.yaml`, and
+See [doc/CODE_TARGETS_MEM_zh.md](doc/CODE_TARGETS_MEM_zh.md) for the current code-target memory and layer
+boundaries. [doc/LABEL_SPEC_zh.md](doc/LABEL_SPEC_zh.md), `configs/class_map.yaml`, and
 `configs/qa_schema.yaml` define the Phase-0 class ontology, hard-mask vs alpha
 boundary, and quality-tier/train-weight mapping. See
-`PROJECT_PLAN_human_matting_pipeline.md` for the full step-by-step plan,
-`PIPELINE_zh.md` for the 12-stage RL + diffusion relabeling design, and
-`TASKS_human_matting_pipeline.md` for the checklist. See
-`OPEN_SOURCE_INTEGRATION_TARGETS_zh.md` and
+[doc/PROJECT_PLAN_human_matting_pipeline.md](doc/PROJECT_PLAN_human_matting_pipeline.md) for the full step-by-step plan,
+[doc/PIPELINE_zh.md](doc/PIPELINE_zh.md) for the 12-stage RL + diffusion relabeling design, and
+[doc/TASKS_human_matting_pipeline.md](doc/TASKS_human_matting_pipeline.md) for the checklist. See
+[doc/OPEN_SOURCE_INTEGRATION_TARGETS_zh.md](doc/OPEN_SOURCE_INTEGRATION_TARGETS_zh.md) and
 `configs/reference_integrations.yaml` for the concrete open-source adapter
 targets and reference-code registry.
+
+Session progress tracking: [doc/pipeline_cursor.md](doc/pipeline_cursor.md). Full doc index: [doc/README.md](doc/README.md).
 
 Full CPU relabel demo:
 
@@ -78,7 +80,7 @@ Full CPU relabel demo:
 bash scripts/run_demo_relabel_pipeline.sh
 ```
 
-For real training data, see `DATASET_STRATEGY_zh.md` and the machine-readable
+For real training data, see [doc/DATASET_STRATEGY_zh.md](doc/DATASET_STRATEGY_zh.md) and the machine-readable
 dataset registry in `configs/datasets.yaml`. They separate direct alpha matte
 datasets from segmentation/video-mask datasets that must be relabeled before
 they can supervise alpha losses.

@@ -1,6 +1,6 @@
 """External research-repo adapter contracts (offline GPU data engine layer).
 
-Per ``CODE_TARGETS_MEM_zh.md`` and ``configs/reference_integrations.yaml``,
+Per ``doc/CODE_TARGETS_MEM_zh.md`` and ``configs/reference_integrations.yaml``,
 external projects (SAM2, SamHQ, SAMRefiner, Cutie/XMem, RAFT/GMFlow,
 MatAnyone, MaGGIe, SEMat, VideoMaMa, CVAT, ...) are integrated **only** through
 adapter / subprocess / command-template boundaries — never by vendoring their

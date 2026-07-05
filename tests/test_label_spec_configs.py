@@ -15,7 +15,7 @@ def _load_yaml(rel: str) -> dict:
 
 
 def test_phase0_label_spec_files_exist():
-    for rel in ["LABEL_SPEC_zh.md", "configs/class_map.yaml", "configs/qa_schema.yaml", "configs/code_targets.yaml"]:
+    for rel in ["doc/LABEL_SPEC_zh.md", "configs/class_map.yaml", "configs/qa_schema.yaml", "configs/code_targets.yaml"]:
         assert (ROOT / rel).exists(), rel
 
 

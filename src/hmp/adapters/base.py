@@ -1,6 +1,6 @@
 """Base contract for external research-repo subprocess adapters.
 
-Design rules (from ``OPEN_SOURCE_INTEGRATION_TARGETS_zh.md`` /
+Design rules (from ``doc/OPEN_SOURCE_INTEGRATION_TARGETS_zh.md`` /
 ``configs/reference_integrations.yaml``):
 
 * ``integration_style: adapter_or_subprocess`` — external repos are invoked

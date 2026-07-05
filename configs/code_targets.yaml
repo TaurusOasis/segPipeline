@@ -1,6 +1,6 @@
 version: 1
 last_updated: "2026-07-05"
-source_doc: "CODE_TARGETS_MEM_zh.md"
+source_doc: "doc/CODE_TARGETS_MEM_zh.md"
 
 pinned_decisions:
   - "YOLO26s-seg is the edge hard-instance-segmentation student."
