@@ -228,7 +228,7 @@ PYTHONPATH=src hmp eval coconut-iterate --config configs/coconut_benchmark.yaml
 5. 用 `hmp eval mqe` + `hmp matting fuse-alpha` 在 accept 样本上验证 mask→matte 质量
 6. ~~benchmark 增加 `yolo_person × samhq` 模式~~（已加入 `coconut_compare.modes` 默认网格）
 7. 从 SA-V / COCO-ReM 扩展 ingest，按 stratify bucket 追加 relabel queue
-8. accept 清洗 mask → ultralytics COCONut 蒸馏（yolo26x-seg → yolo26s-seg）
+8. ~~accept 清洗 mask → ultralytics COCONut 蒸馏~~（`hmp yolo export-accept-coconut` + `hmp yolo distill-plan` + `scripts/export_accept_coconut_distill.sh`）
 
 ## 风险清单
 

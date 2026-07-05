@@ -1,5 +1,30 @@
 # Step-by-step Task Checklist for Claude Code / Codex
 
+Current code-target memory: `CODE_TARGETS_MEM_zh.md` and
+`configs/code_targets.yaml`. Follow the layer boundary there before adding new
+segmentation, video, temporal, matting, or edge-runtime code.
+
+## Milestone 0: Label spec and code target memory
+
+- [x] Persist three-layer code target memory
+- [ ] Add `LABEL_SPEC_zh.md`
+- [ ] Add `configs/class_map.yaml`
+- [ ] Add `configs/qa_schema.yaml`
+- [ ] Define `person_core`, `person_full`, and `person_alpha` rules
+- [ ] Define quality tier to train_weight mapping
+
+Acceptance:
+
+```bash
+PYTHONPATH=src pytest -q
+python - <<'PY'
+from pathlib import Path
+import yaml
+for p in ["configs/code_targets.yaml", "configs/reference_integrations.yaml"]:
+    yaml.safe_load(Path(p).read_text(encoding="utf-8"))
+PY
+```
+
 ## Milestone 1: CPU-only skeleton
 
 - [ ] Step 00: Initialize repository skeleton

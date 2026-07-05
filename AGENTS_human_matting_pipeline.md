@@ -18,6 +18,16 @@ raw data
   -> ONNX / RKNN export
 ```
 
+Current code-target memory lives in `CODE_TARGETS_MEM_zh.md` and
+`configs/code_targets.yaml`. Follow it before changing segmentation, video,
+temporal, matting, or edge-runtime code:
+
+```text
+Layer 1: offline GPU label engine / teacher system
+Layer 2: YOLO26s-seg edge hard-segmentation student
+Layer 3: optional lightweight video wrapper and later separate matting student
+```
+
 ## Hard Rules
 
 - Do not implement all stages in one pass.
@@ -151,4 +161,3 @@ The fake script should create small masks and JSON outputs so the adapter can be
 - Do not hardcode absolute local paths.
 - Do not build a notebook-only pipeline.
 - Do not merge all experimental KD code into the official distillation wrapper.
-

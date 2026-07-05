@@ -1,0 +1,180 @@
+version: 1
+last_updated: "2026-07-05"
+source_doc: "CODE_TARGETS_MEM_zh.md"
+
+pinned_decisions:
+  - "YOLO26s-seg is the edge hard-instance-segmentation student."
+  - "Offline GPU teachers produce labels, cleanup, masklets, alpha, QA, and distillation signals."
+  - "Video segmentation is track_id plus stable masklet before any video matting."
+  - "Video matting trains a separate lightweight alpha student later; YOLO26s-seg does not output alpha."
+  - "COCONut and COCO-ReM are segmentation/core-mask sources, not direct alpha matte labels."
+
+layers:
+  offline_gpu_label_engine:
+    role: "High-quality labels, teacher inference, QA, distillation targets."
+    owns:
+      - "class-aware proposals"
+      - "mask proposal and refinement"
+      - "quality scoring and label tiering"
+      - "video masklet and temporal QA"
+      - "alpha candidates, eval_map, branch_source, train_weight"
+    tools:
+      - "Grounded-SAM-2"
+      - "GroundingDINO"
+      - "YOLO26x-seg"
+      - "SAM2"
+      - "SAM-HQ/HQ-SAM2"
+      - "SAMRefiner"
+      - "Cutie/XMem"
+      - "RAFT/GMFlow"
+      - "MatAnyone/MatAnyone2"
+      - "SEMat/MaGGIe"
+      - "VideoMaMa/DiffMatte"
+
+  edge_student:
+    role: "On-device hard instance segmentation."
+    model: "YOLO26s-seg"
+    owns:
+      - "frame-level object masks"
+      - "bbox/class/confidence"
+      - "ONNX/RKNN export"
+      - "latency and deployment reports"
+    forbidden:
+      - "direct alpha matte output"
+      - "SAM2/Cutie/RAFT/VideoMaMa as runtime dependencies"
+      - "heavy temporal memory inside the student backbone"
+
+  edge_video_wrapper_and_future_matting_student:
+    role: "Optional lightweight temporal runtime and later separate alpha model."
+    owns:
+      - "mask IoU tracking"
+      - "bbox Kalman/motion smoothing"
+      - "confidence hysteresis"
+      - "short-term missing-frame recovery"
+      - "periodic re-detection"
+      - "future RGB+mask guided matting student"
+    forbidden_initially:
+      - "large optical flow runtime"
+      - "SAM2/Cutie VOS runtime"
+      - "diffusion runtime"
+
+versions:
+  V0_image_segmentation_data_engine:
+    priority: "highest"
+    goal: "High-quality image instance masks and YOLO segmentation labels."
+    outputs:
+      - "image_seg_dataset_v1"
+      - "labels_yolo_seg"
+      - "masks_png"
+      - "polygons_json"
+      - "quality_json"
+      - "train_weight"
+      - "human_review_queue_v1"
+
+  V1_yolo26s_image_student:
+    priority: "high"
+    goal: "Clean deployable YOLO26s-seg baseline and distilled student."
+    outputs:
+      - "yolo26s_seg_baseline.pt"
+      - "yolo26x_seg_teacher.pt"
+      - "yolo26s_seg_distilled.pt"
+      - "onnx_candidate"
+      - "rknn_candidate"
+      - "edge_latency_report"
+
+  V2_video_segmentation_data_engine:
+    priority: "medium"
+    goal: "Track-stable video masklets with temporal QA."
+    outputs:
+      - "video_seg_dataset_v1"
+      - "masklet_tracks"
+      - "track_meta"
+      - "temporal_quality_report"
+      - "repair_queue"
+
+  V3_video_matting_data_engine:
+    priority: "medium_later"
+    goal: "Stable masklet to alpha dataset with eval_map and branch provenance."
+    outputs:
+      - "human_video_matting_dataset_v1"
+      - "alpha"
+      - "eval_map"
+      - "branch_source"
+      - "train_weight"
+      - "matting_quality_report"
+
+  V4_edge_video_runtime:
+    priority: "later"
+    goal: "YOLO26s-seg plus lightweight tracker and optional separate matting student."
+    outputs:
+      - "yolo26s_video_seg_runtime"
+      - "tracking_report"
+      - "flicker_report"
+      - "lightweight_matting_student"
+
+quality_tiers:
+  gold:
+    min_quality: 0.9
+    training_use: "high_weight"
+  silver:
+    min_quality: 0.75
+    training_use: "normal_weight"
+  bronze:
+    min_quality: 0.55
+    training_use: "low_weight_or_distillation_only"
+  reject:
+    max_quality: 0.55
+    training_use: "reject_or_human_review"
+
+human_labels:
+  person_core:
+    yolo_training: true
+    description: "Main human body, excluding most handheld objects."
+  person_full:
+    yolo_training: true
+    description: "Human plus clothes, hair, hats, and clearly attached accessories."
+  person_alpha:
+    yolo_training: false
+    description: "Soft alpha matte target for matting stages only."
+
+next_code_priorities:
+  - "Add LABEL_SPEC_zh.md and configs/class_map.yaml."
+  - "Use COCONut review_priority, area_buckets, and tag_metrics as hard-case queue inputs."
+  - "Add image segmentation export quality_json and train_weight artifacts."
+  - "Add external adapter base contract: command template, env, dry-run, output validation."
+  - "Add SAM2/SAM-HQ/SAMRefiner offline teacher/refiner adapters."
+  - "Add YOLO baseline/distillation dry-run wrappers."
+  - "Add video masklet schema and temporal QA after image segmentation stabilizes."
+  - "Add video matting alpha teachers after stable masklets exist."
+
+module_targets:
+  "src/hmp/schemas.py":
+    - "Keep stable JSONL contracts."
+    - "Add image label quality/provenance fields before adding video/matting fields."
+  "src/hmp/labeling/":
+    - "Own class-aware proposals and shared auto-label core."
+    - "Do not hardcode class ontology inside SAM adapters."
+  "src/hmp/eval/":
+    - "Own QA, tiering, benchmark summaries, and hard-case mining."
+  "src/hmp/data/":
+    - "Own YOLO segmentation export, polygons, masks, train_weight artifacts."
+  "src/hmp/matting/":
+    - "Own alpha branches, adaptive ROI, fusion, MQE, and HITL for alpha."
+  "src/hmp/models/":
+    - "Own model tier registry and edge/teacher separation."
+  "future src/hmp/yolo/":
+    - "Own teacher training, student baseline, distillation, validation wrappers."
+  "future src/hmp/adapters/":
+    - "Own external repo subprocess adapters only."
+  "future src/hmp/runtime/":
+    - "Own lightweight edge video wrapper."
+
+acceptance_commands:
+  light:
+    - "PYTHONPATH=src pytest -q"
+    - "hmp pipeline stages"
+    - "hmp eval coconut-resummarize --benchmark-dir runs/coconut_benchmark --config configs/coconut_benchmark.yaml"
+    - "hmp eval coconut-export-review --benchmark-dir runs/coconut_benchmark"
+  gpu:
+    - "PYTHONPATH=src yolo26-cu133/bin/python -m hmp.cli eval coconut-iterate -c configs/coconut_benchmark.yaml"
+

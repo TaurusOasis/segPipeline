@@ -7,10 +7,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 `hmp` (Human Matting Pipeline) is a modular, reproducible training pipeline for
 human segmentation / video matting / RK3576 deployment. The first milestone is a
 reliable, testable, swappable end-to-end engineering skeleton — *not* SOTA
-quality. The full design lives in `PROJECT_PLAN_human_matting_pipeline.md`; the
-12-stage RL + diffusion relabeling design in `PIPELINE_zh.md` / `PIPELINE_v2_zh.md`;
+quality. The current code-target memory and layer boundaries live in
+`CODE_TARGETS_MEM_zh.md` and `configs/code_targets.yaml`. The full design lives
+in `PROJECT_PLAN_human_matting_pipeline.md`; the 12-stage RL + diffusion relabeling design in `PIPELINE_zh.md` / `PIPELINE_v2_zh.md`;
 the per-module map in `CODEMAP_zh.md`; the dataset registry in
 `configs/datasets.yaml` + `DATASET_STRATEGY_zh.md`.
+
+Pinned boundary: offline GPU teachers do auto-labeling, video masklets,
+temporal QA, alpha generation, and distillation targets; `YOLO26s-seg` remains
+the edge hard-instance-segmentation student; video tracking/wrapper and matting
+student are separate later layers.
 
 ## Environments
 

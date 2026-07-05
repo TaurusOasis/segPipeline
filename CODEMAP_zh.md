@@ -2,6 +2,10 @@
 
 人体 matting 二次重标注管线：数据采样 → 自动标注 → 质量评估 → 融合 → HITL → 最终 label。
 
+当前代码目标记忆见 [CODE_TARGETS_MEM_zh.md](CODE_TARGETS_MEM_zh.md) 和
+[configs/code_targets.yaml](configs/code_targets.yaml)：先做图像 segmentation
+数据引擎与 YOLO26s-seg student，再扩展 video masklet，最后进入 video matting。
+
 ## 入口
 
 | 入口 | 路径 | 说明 |

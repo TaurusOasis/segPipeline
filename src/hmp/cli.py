@@ -227,6 +227,45 @@ def dataset_ingest(
     typer.echo(str(out))
 
 
+# ---------------------------------------------------------------------------
+# yolo group (distillation bridge)
+# ---------------------------------------------------------------------------
+yolo_app = typer.Typer(help="YOLO export and distillation bridge to ultralytics/.")
+app.add_typer(yolo_app, name="yolo")
+
+
+@yolo_app.command("export-accept-coconut")
+def yolo_export_accept_coconut(
+    config: Path = typer.Option(..., "--config", "-c"),
+    benchmark_dir: Path | None = typer.Option(None, "--benchmark-dir"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+) -> None:
+    """Patch COCONut YOLO val labels with benchmark accept masks."""
+    from .yolo.coconut_distill_bridge import overlay_accept_labels_on_coconut
+
+    cfg = _load_cfg(config)
+    out = overlay_accept_labels_on_coconut(
+        cfg,
+        project_root=Path.cwd(),
+        benchmark_dir=benchmark_dir,
+        dry_run=dry_run,
+    )
+    typer.echo(str(out))
+
+
+@yolo_app.command("distill-plan")
+def yolo_distill_plan(
+    config: Path = typer.Option(..., "--config", "-c"),
+    data_yaml: Path | None = typer.Option(None, "--data-yaml", help="Optional overlay data.yaml path."),
+) -> None:
+    """Print ultralytics COCONut distillation command for accept-overlay labels."""
+    from .yolo.coconut_distill_bridge import build_coconut_distill_plan
+
+    cfg = _load_cfg(config)
+    plan = build_coconut_distill_plan(cfg, project_root=Path.cwd(), data_yaml=data_yaml)
+    typer.echo(json.dumps(plan, indent=2))
+
+
 @dataset_app.command("stratify")
 def dataset_stratify(
     config: Path = typer.Option(..., "--config", "-c"),

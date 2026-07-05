@@ -4,6 +4,8 @@
 
 - 阶段注册表：`src/hmp/pipeline/stages.py`
 - 统一配置：`configs/pipeline.yaml`
+- 当前代码目标 MEM：`CODE_TARGETS_MEM_zh.md`
+- 机器可读目标：`configs/code_targets.yaml`
 - 数据策略：`DATASET_STRATEGY_zh.md`
 - 数据集 registry：`configs/datasets.yaml`
 - 开源 adapter 落地目标：`OPEN_SOURCE_INTEGRATION_TARGETS_zh.md`

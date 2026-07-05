@@ -1,0 +1,37 @@
+project:
+  name: coconut-accept-distill-bridge
+  root: .
+  seed: 42
+
+coconut_distill_bridge:
+  compare_output_dir: runs/coconut_compare
+  mode: yolo_person__sam2
+  benchmark_dir: runs/coconut_compare/yolo_person__sam2
+  import_decisions: [accept]
+  base_yolo_root: /home/genesis/Train/Dataset/COCONut_b_yolo_seg_v2
+  output_yolo_root: data/coconut/yolo_accept_overlay
+  patch_split: val
+  class_names: [person]
+  class_id: 0
+  ultralytics_root: /home/genesis/Train/Code/ultralytics
+  python_bin: /home/genesis/Tools/Anaconda/envs/yolo26-cu133/bin/python
+  distill_teacher: yolo26x-seg
+  student_weights: /home/genesis/Train/Code/ultralytics/runs/segment/yolo26s-seg-lvis-coco80-distill-x-teacher-b80-2gpu/weights/best.pt
+  teacher_weights: /home/genesis/Train/Code/ultralytics/yolo26x-seg.pt
+  run_name: yolo26s-seg-coconut-accept-overlay-distill
+  epochs: 50
+  batch: 64
+  device: "0,1"
+
+models:
+  edge:
+    name: yolo26s-seg
+    weights: /home/genesis/Train/Code/ultralytics/yolo26s-seg.pt
+  teachers:
+    yolo26x-seg:
+      backend: external
+      weights: /home/genesis/Train/Code/ultralytics/yolo26x-seg.pt
+      kind: distill
+
+logging:
+  level: INFO

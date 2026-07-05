@@ -1,6 +1,6 @@
 # 开源标注引擎落地目标与参考代码
 
-本文把“不要从零写，而是拼成离线数据标注引擎”的分析落到本仓库的工程目标。原则是：外部研究项目只通过 adapter / subprocess / command template 接入，不把大仓库源码散落进 `src/`，所有输出都回到 `hmp` 的 JSONL schema、质量评估和 review queue。
+本文把“不要从零写，而是拼成离线数据标注引擎”的分析落到本仓库的工程目标。当前三层代码目标记忆见 [CODE_TARGETS_MEM_zh.md](CODE_TARGETS_MEM_zh.md)。原则是：外部研究项目只通过 adapter / subprocess / command template 接入，不把大仓库源码散落进 `src/`，所有输出都回到 `hmp` 的 JSONL schema、质量评估和 review queue。
 
 ## 总目标
 
@@ -240,4 +240,3 @@ src/hmp/adapters/
 - 外部 repo 不 vendor 到主包；使用 `external_repos/`、环境变量或配置路径引用。
 - 每个 adapter 必须支持 `--dry-run` 或 mock provider，单测不能依赖 GPU、权重或网络。
 - 每个外部输出必须写回 `prompt_history`、`branch_source`、`quality_scores`、`license_meta`，保证 provenance 可追踪。
-

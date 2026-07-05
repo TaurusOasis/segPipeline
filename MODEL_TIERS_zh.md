@@ -1,6 +1,16 @@
 # 模型分层：端侧部署 vs GPU Teacher
 
 > 原则：**yolo26s-seg 是端侧唯一分割学生**；auto-label、数据清洗、蒸馏 teacher 可使用 SAM / SamHQ 等 GPU 模型，**不部署到 RK3576**。
+>
+> 更完整的三层代码目标记忆见 [CODE_TARGETS_MEM_zh.md](CODE_TARGETS_MEM_zh.md)。
+
+## 三层边界
+
+| 层级 | 职责 | 禁止混淆 |
+|------|------|----------|
+| 离线 GPU 数据引擎 / Teacher | 自动标注、mask refine、video masklet、alpha teacher、QA、distillation target | 不作为端侧 runtime |
+| 端侧 Student | `yolo26s-seg` hard instance segmentation、ONNX/RKNN、latency report | 不直接输出 alpha、不塞入 SAM2/Cutie/RAFT |
+| 可选端侧视频 wrapper / 后续 matting student | tracking、temporal smoothing、missing recovery、独立 RGB+mask alpha student | 不把大 VOS/diffusion 模型搬到端侧 |
 
 ## 分层一览
 
