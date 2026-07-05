@@ -36,6 +36,14 @@ from .base import (
     SubprocessAdapter,
     load_registry,
 )
+from .templates import (
+    ADAPTER_INPUT_KEYS,
+    ADAPTER_OUTPUT_KEYS,
+    DEFAULT_COMMAND_TEMPLATES,
+    build_adapter,
+    dry_run_adapter,
+    template_for,
+)
 
 __all__ = [
     "AdapterSpec",
@@ -44,4 +52,10 @@ __all__ = [
     "AdapterResult",
     "AdapterRegistry",
     "load_registry",
+    "DEFAULT_COMMAND_TEMPLATES",
+    "ADAPTER_INPUT_KEYS",
+    "ADAPTER_OUTPUT_KEYS",
+    "build_adapter",
+    "dry_run_adapter",
+    "template_for",
 ]
