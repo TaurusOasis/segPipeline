@@ -100,6 +100,37 @@ def gradient_error(pred: np.ndarray, gt: np.ndarray, trimap: Optional[np.ndarray
     return float(_select(diff, unknown).sum() / 1000.0)
 
 
+def _distance_to_foreground(fg: np.ndarray) -> np.ndarray:
+    """Distance from each pixel to the nearest foreground pixel.
+
+    SciPy gives the reference EDT when available. OpenCV is a good lightweight
+    fallback in the project envs. The final NumPy path is intentionally simple
+    and mainly keeps CPU tests independent of binary scipy wheels.
+    """
+    try:
+        from scipy import ndimage
+
+        return ndimage.distance_transform_edt(~fg)
+    except Exception:
+        pass
+
+    try:
+        import cv2
+
+        return cv2.distanceTransform((~fg).astype(np.uint8), cv2.DIST_L2, cv2.DIST_MASK_PRECISE)
+    except Exception:
+        pass
+
+    coords = np.argwhere(fg)
+    if coords.size == 0:
+        return np.full(fg.shape, np.inf, dtype=np.float64)
+    yy, xx = np.indices(fg.shape)
+    dist2 = np.full(fg.shape, np.inf, dtype=np.float64)
+    for y, x in coords:
+        dist2 = np.minimum(dist2, (yy - y) * (yy - y) + (xx - x) * (xx - x))
+    return np.sqrt(dist2)
+
+
 def _connectivity_map(alpha: np.ndarray, unknown: np.ndarray, rad: int, dt: float) -> np.ndarray:
     """Per-pixel connectivity term for one alpha (Xu et al. 2017).
 
@@ -108,8 +139,6 @@ def _connectivity_map(alpha: np.ndarray, unknown: np.ndarray, rad: int, dt: floa
     (via an EDT of the complement). The connectivity term is
     ``1 - (1/N) * sum_levels connected``, accumulated only inside ``unknown``.
     """
-    from scipy import ndimage
-
     h, w = alpha.shape
     levels = np.arange(0.0, 1.0, dt)
     n_levels = len(levels)
@@ -118,7 +147,7 @@ def _connectivity_map(alpha: np.ndarray, unknown: np.ndarray, rad: int, dt: floa
     for level in levels:
         fg = a255 >= (level * 255.0)
         # EDT of the complement: distance from every pixel to the nearest fg pixel.
-        dist = ndimage.distance_transform_edt(~fg)
+        dist = _distance_to_foreground(fg)
         connected = (dist <= rad).astype(np.float64)
         acc += connected
     acc /= n_levels

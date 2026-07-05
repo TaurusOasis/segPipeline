@@ -306,14 +306,13 @@ stable masklet
 
 ## 最近的代码优先级
 
-1. 补 `LABEL_SPEC_zh.md` 和 `configs/class_map.yaml`。
-2. 把 COCONut benchmark 的 `review_priority / area_buckets / tag_metrics` 用于 hard-case queue。
-3. 增加 image segmentation dataset export 的 `quality_json` 与 `train_weight`。
-4. 抽象 external adapter base contract，支持 command template + dry-run + output validation。
-5. 接入 SAM2/SAM-HQ/SAMRefiner 作为离线 mask teacher/refiner，而不是端侧依赖。
-6. 新增 YOLO baseline/distill wrapper 的 dry-run skeleton。
-7. 再进入 video masklet schema 和 temporal QA。
-8. 最后进入 video matting alpha teacher 和端侧 lightweight wrapper。
+1. 把 COCONut benchmark 的 `review_priority / area_buckets / tag_metrics` 用于 hard-case queue。
+2. 增加 image segmentation dataset export 的 `quality_json` 与 `train_weight`。
+3. 抽象 external adapter base contract，支持 command template + dry-run + output validation。
+4. 接入 SAM2/SAM-HQ/SAMRefiner 作为离线 mask teacher/refiner，而不是端侧依赖。
+5. 新增 YOLO baseline/distill wrapper 的 dry-run skeleton。
+6. 再进入 video masklet schema 和 temporal QA。
+7. 最后进入 video matting alpha teacher 和端侧 lightweight wrapper。
 
 ## 验收命令
 
@@ -331,4 +330,3 @@ hmp eval coconut-export-review --benchmark-dir runs/coconut_benchmark
 ```bash
 PYTHONPATH=src yolo26-cu133/bin/python -m hmp.cli eval coconut-iterate -c configs/coconut_benchmark.yaml
 ```
-

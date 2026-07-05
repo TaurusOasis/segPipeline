@@ -7,11 +7,11 @@ segmentation, video, temporal, matting, or edge-runtime code.
 ## Milestone 0: Label spec and code target memory
 
 - [x] Persist three-layer code target memory
-- [ ] Add `LABEL_SPEC_zh.md`
-- [ ] Add `configs/class_map.yaml`
-- [ ] Add `configs/qa_schema.yaml`
-- [ ] Define `person_core`, `person_full`, and `person_alpha` rules
-- [ ] Define quality tier to train_weight mapping
+- [x] Add `LABEL_SPEC_zh.md`
+- [x] Add `configs/class_map.yaml`
+- [x] Add `configs/qa_schema.yaml`
+- [x] Define `person_core`, `person_full`, and `person_alpha` rules
+- [x] Define quality tier to train_weight mapping
 
 Acceptance:
 

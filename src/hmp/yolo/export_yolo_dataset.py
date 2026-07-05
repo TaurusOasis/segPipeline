@@ -13,6 +13,7 @@ from typing import Optional
 from ..common.jsonl import read_jsonl_list
 from ..common.logging import get_logger
 from ..config import Config, resolve_path, seed_from_config
+from ..data.label_spec import active_yolo_class_names, load_class_map
 from ..data.split_dataset import train_val_split
 from ..data.yolo_seg_io import write_data_yaml, write_yolo_label
 from ..schemas import AnnotationRecord, MediaItem
@@ -53,7 +54,12 @@ def export_yolo_dataset(
     val_ratio = float(e_cfg.get("val_ratio", 0.2))
     seed = int(e_cfg.get("seed", seed_from_config(cfg)))
     symlink = bool(e_cfg.get("symlink", True))
-    class_names = class_names or e_cfg.get("class_names", ["person"])
+    if class_names is None:
+        class_map_path = e_cfg.get("class_map_path")
+        if class_map_path:
+            class_names = active_yolo_class_names(load_class_map(resolve_path(root, class_map_path)))
+        else:
+            class_names = e_cfg.get("class_names", ["person"])
     class_map = {name: i for i, name in enumerate(class_names)}
 
     items = read_jsonl_list(manifest_path, model=MediaItem)

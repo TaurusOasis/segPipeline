@@ -1,0 +1,137 @@
+version: 1
+last_updated: "2026-07-05"
+source_doc: "LABEL_SPEC_zh.md"
+
+score_range:
+  min: 0.0
+  max: 1.0
+  higher_is_better_default: true
+
+score_fields:
+  class_score:
+    description: "Detector/grounding/classifier confidence that the instance belongs to the configured class."
+    range: [0.0, 1.0]
+    higher_is_better: true
+  box_score:
+    description: "Localization confidence or agreement for the proposal bbox."
+    range: [0.0, 1.0]
+    higher_is_better: true
+  mask_iou_agreement:
+    description: "Agreement between candidate masks, e.g. SAM2/SAM-HQ/YOLO teacher."
+    range: [0.0, 1.0]
+    higher_is_better: true
+  boundary_score:
+    description: "Boundary F-score or contour agreement with teacher/GT/edge prior."
+    range: [0.0, 1.0]
+    higher_is_better: true
+  edge_alignment:
+    description: "Mask boundary alignment with image gradients or edge map."
+    range: [0.0, 1.0]
+    higher_is_better: true
+  area_ratio_score:
+    description: "Reasonable mask-to-box and mask-to-image area score."
+    range: [0.0, 1.0]
+    higher_is_better: true
+  overlap_conflict:
+    description: "Fraction/risk of unresolved overlap with other instances or classes."
+    range: [0.0, 1.0]
+    higher_is_better: false
+  small_object_risk:
+    description: "Risk that the object is too small for reliable hard-label training."
+    range: [0.0, 1.0]
+    higher_is_better: false
+  teacher_disagreement:
+    description: "Disagreement among detector/mask/refiner teachers."
+    range: [0.0, 1.0]
+    higher_is_better: false
+  final_quality:
+    description: "Combined quality score used for label tiering and train_weight."
+    range: [0.0, 1.0]
+    higher_is_better: true
+
+final_quality_formula:
+  type: "weighted_linear"
+  clamp: [0.0, 1.0]
+  weights:
+    class_score: 0.12
+    box_score: 0.08
+    mask_iou_agreement: 0.22
+    boundary_score: 0.18
+    edge_alignment: 0.12
+    area_ratio_score: 0.08
+    overlap_conflict_inverse: 0.08
+    small_object_risk_inverse: 0.05
+    teacher_disagreement_inverse: 0.07
+
+quality_tiers:
+  gold:
+    min_final_quality: 0.90
+    train_weight: 1.00
+    decision: "accept"
+    human_review_required: false
+    training_use: "high_weight"
+  silver:
+    min_final_quality: 0.75
+    train_weight: 0.75
+    decision: "accept"
+    human_review_required: false
+    training_use: "normal_weight"
+  bronze:
+    min_final_quality: 0.55
+    train_weight: 0.35
+    decision: "review"
+    human_review_required: true
+    training_use: "low_weight_or_distillation_only"
+  reject:
+    max_final_quality: 0.55
+    train_weight: 0.00
+    decision: "reject"
+    human_review_required: true
+    training_use: "reject_or_human_review"
+
+decisions:
+  accept:
+    allowed_tiers: ["gold", "silver"]
+    export_to_yolo: true
+  review:
+    allowed_tiers: ["bronze"]
+    export_to_yolo: false
+    send_to_human_queue: true
+  reject:
+    allowed_tiers: ["reject"]
+    export_to_yolo: false
+    send_to_human_queue: true
+
+artifact_contract:
+  quality_json_required_fields:
+    - "item_id"
+    - "instance_id"
+    - "class_id"
+    - "class_name"
+    - "semantic_layer"
+    - "quality_scores"
+    - "final_quality"
+    - "label_tier"
+    - "train_weight"
+    - "decision"
+    - "error_tags"
+    - "provenance"
+  train_weight_format:
+    image_segmentation: "per_instance_float"
+    video_matting: "per_pixel_png_or_exr"
+
+error_tags:
+  - "detector_miss"
+  - "class_conflict"
+  - "low_iou"
+  - "bad_boundary"
+  - "edge_misaligned"
+  - "missed_foreground"
+  - "background_leak"
+  - "overlap_conflict"
+  - "small_object"
+  - "crowd_unresolved"
+  - "teacher_disagreement_high"
+  - "needs_scribble"
+  - "identity_uncertain"
+

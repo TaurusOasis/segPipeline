@@ -138,7 +138,6 @@ human_labels:
     description: "Soft alpha matte target for matting stages only."
 
 next_code_priorities:
-  - "Add LABEL_SPEC_zh.md and configs/class_map.yaml."
   - "Use COCONut review_priority, area_buckets, and tag_metrics as hard-case queue inputs."
   - "Add image segmentation export quality_json and train_weight artifacts."
   - "Add external adapter base contract: command template, env, dry-run, output validation."
@@ -177,4 +176,3 @@ acceptance_commands:
     - "hmp eval coconut-export-review --benchmark-dir runs/coconut_benchmark"
   gpu:
     - "PYTHONPATH=src yolo26-cu133/bin/python -m hmp.cli eval coconut-iterate -c configs/coconut_benchmark.yaml"
-

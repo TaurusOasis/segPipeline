@@ -5,6 +5,9 @@
 当前代码目标记忆见 [CODE_TARGETS_MEM_zh.md](CODE_TARGETS_MEM_zh.md) 和
 [configs/code_targets.yaml](configs/code_targets.yaml)：先做图像 segmentation
 数据引擎与 YOLO26s-seg student，再扩展 video masklet，最后进入 video matting。
+Phase-0 标签规范见 [LABEL_SPEC_zh.md](LABEL_SPEC_zh.md)、
+[configs/class_map.yaml](configs/class_map.yaml)、
+[configs/qa_schema.yaml](configs/qa_schema.yaml)。
 
 ## 入口
 

@@ -1,0 +1,135 @@
+version: 1
+last_updated: "2026-07-05"
+source_doc: "LABEL_SPEC_zh.md"
+
+export_defaults:
+  target_format: "yolo_segmentation"
+  active_class_set: "yolo_person_v1"
+  active_semantic_layer: "person_full"
+  default_class_name: "person"
+  default_class_id: 0
+  default_ignore_label: "ignore"
+
+class_sets:
+  yolo_person_v1:
+    description: "Single-class hard instance segmentation target for YOLO26s-seg."
+    classes:
+      - class_id: 0
+        name: "person"
+        export_name: "person"
+        semantic_layer: "person_full"
+        yolo_training: true
+        train_target: "hard_instance_mask"
+
+semantic_layers:
+  person_core:
+    description: "Conservative visible human core, useful as refinement seed or trimap foreground core."
+    yolo_training: true
+    alpha_training: false
+    target_type: "hard_mask"
+    include:
+      - "visible_skin"
+      - "torso"
+      - "head"
+      - "arms"
+      - "legs"
+    exclude:
+      - "handheld_objects"
+      - "large_loose_accessories"
+      - "background_between_limbs"
+
+  person_full:
+    description: "Default YOLO person mask: visible human plus worn clothing, hair, shoes, and clearly attached accessories."
+    yolo_training: true
+    alpha_training: false
+    target_type: "hard_instance_mask"
+    include:
+      - "visible_skin"
+      - "hair"
+      - "clothing"
+      - "shoes"
+      - "worn_hat"
+      - "worn_scarf"
+      - "worn_mask"
+      - "glasses"
+      - "attached_accessory"
+    exclude:
+      - "phone"
+      - "bag_not_worn"
+      - "ball"
+      - "umbrella"
+      - "tool"
+      - "cup"
+      - "vehicle"
+      - "chair"
+      - "animal"
+      - "shadow"
+      - "reflection"
+
+  person_alpha:
+    description: "Soft alpha matte target for matting only; never exported as YOLO segmentation label."
+    yolo_training: false
+    alpha_training: true
+    target_type: "soft_alpha"
+    include:
+      - "hair_transparency"
+      - "motion_blur"
+      - "semi_transparent_boundary"
+      - "soft_cloth_boundary"
+    exclude:
+      - "hard_yolo_polygon"
+      - "unreviewed_binary_mask"
+
+policies:
+  minimum_object:
+    min_visible_area_px: 32
+    min_area_ratio: 0.0001
+    below_threshold_action: "ignore_or_review"
+
+  occlusion:
+    label_visible_only: true
+    hallucinate_invisible_parts: false
+    severe_occlusion_action: "review"
+    reentry_identity_uncertain_action: "review"
+
+  crowd:
+    allow_crowd_ignore_region: true
+    unresolved_overlap_action: "human_review"
+    instance_swap_action: "reject_or_retrack"
+
+  overlap:
+    person_vs_worn_accessory: "merge_into_person"
+    person_vs_handheld_object: "exclude_object"
+    person_vs_vehicle_or_furniture: "keep_visible_person_only"
+    ambiguous_boundary_action: "review"
+
+  holes:
+    fill_small_internal_holes: true
+    preserve_true_background_between_limbs: true
+    max_fill_hole_area_ratio: 0.002
+
+  polygon:
+    normalized_coordinates: true
+    min_polygon_points: 3
+    simplification: "conservative"
+    simplification_epsilon_ratio: 0.001
+    preserve_thin_structures: true
+
+ignore_region_types:
+  - "crowd_unresolved"
+  - "tiny_person"
+  - "severe_motion_blur"
+  - "reflection_or_screen_person"
+  - "identity_uncertain_reentry"
+  - "teacher_disagreement_high"
+
+provenance_required_fields:
+  - "source_dataset"
+  - "proposal_source"
+  - "mask_source"
+  - "refiner"
+  - "quality_score"
+  - "label_tier"
+  - "train_weight"
+  - "human_checked"
+
