@@ -75,7 +75,7 @@ hmp config models -c configs/coconut_relabel.yaml
 | `hmp pipeline run-relabel --provider yolo_samhq` | yolo26s-seg | SamHQ |
 | `hmp pipeline run-relabel --provider yolo_grabcut` | yolo26s-seg | GrabCut ablation |
 
-Benchmark 四模式网格仍用 `detector × sam_mode`；生产迭代计划优先 `yolo_person + sam2`，bad_boundary 样本可切换 `samhq` 重标。
+Benchmark 五模式网格仍用 `detector × sam_mode`（含 `yolo_person × samhq`）；生产迭代计划优先 `yolo_person + sam2`，bad_boundary 样本可 `hmp eval coconut-relabel-boundary --teacher samhq` 重标。
 
 ## 代码模块
 

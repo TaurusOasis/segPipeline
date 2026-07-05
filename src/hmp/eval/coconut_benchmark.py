@@ -26,7 +26,7 @@ from ..schemas import AnnotationRecord, BenchmarkRecord, InstanceAnnotation, Med
 log = get_logger("hmp.eval.coconut_benchmark")
 
 DetectorMode = Literal["gt_bbox", "jitter_bbox", "center_prior", "yolo_person"]
-SamMode = Literal["grabcut", "oracle", "noisy_oracle", "sam2"]
+SamMode = Literal["grabcut", "oracle", "noisy_oracle", "sam2", "samhq"]
 
 AREA_BUCKET_ORDER = {"tiny": 0, "small": 1, "medium": 2, "large": 3, "unknown": 4}
 PRIMARY_ERROR_ORDER = (

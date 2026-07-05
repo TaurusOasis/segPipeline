@@ -224,9 +224,9 @@ PYTHONPATH=src hmp eval coconut-iterate --config configs/coconut_benchmark.yaml
 1. ~~增加 dataset registry loader~~（已有 `configs/datasets.yaml` + `hmp dataset ingest`）
 2. ~~COCONut benchmark~~（已完成；持续扩大 limit 与 hard bucket）
 3. ~~将 benchmark 选中的 `yolo_sam2` 模式接入 pipeline~~（`hmp pipeline bootstrap-from-benchmark` + `run_coconut_relabel_e2e.sh`）
-4. 用 `bootstrap-from-benchmark` / `coconut-export-review` 导出 review 队列，收集 scribble/point 修正；bad_boundary 用 `--teacher samhq` 重标
+4. 用 `bootstrap-from-benchmark` / `coconut-export-review` 导出 review 队列；bad_boundary 用 `hmp eval coconut-export-bad-boundary` + `hmp eval coconut-relabel-boundary --teacher samhq`
 5. 用 `hmp eval mqe` + `hmp matting fuse-alpha` 在 accept 样本上验证 mask→matte 质量
-6. benchmark 增加 `yolo_person × samhq` 模式，量化边界 teacher 收益
+6. ~~benchmark 增加 `yolo_person × samhq` 模式~~（已加入 `coconut_compare.modes` 默认网格）
 7. 从 SA-V / COCO-ReM 扩展 ingest，按 stratify bucket 追加 relabel queue
 8. accept 清洗 mask → ultralytics COCONut 蒸馏（yolo26x-seg → yolo26s-seg）
 

@@ -617,6 +617,57 @@ def eval_coconut_export_hitl(
     typer.echo(str(out))
 
 
+@eval_app.command("coconut-export-bad-boundary")
+def eval_coconut_export_bad_boundary(
+    benchmark_dir: Path = typer.Option(..., "--benchmark-dir", help="Benchmark output directory."),
+    out: Path | None = typer.Option(None, "--out", help="Optional output JSONL path."),
+    decisions: str = typer.Option(
+        "review,reject,accept",
+        "--decisions",
+        help="Comma-separated decisions to include.",
+    ),
+) -> None:
+    """Export bad_boundary instances for SamHQ boundary re-label."""
+    from .eval.benchmark_bridge import export_bad_boundary_queue
+
+    decision_tuple = tuple(d.strip() for d in decisions.split(",") if d.strip())
+    path = export_bad_boundary_queue(
+        benchmark_dir,
+        queue_path=out,
+        include_decisions=decision_tuple or ("review", "reject", "accept"),
+    )
+    typer.echo(str(path))
+
+
+@eval_app.command("coconut-relabel-boundary")
+def eval_coconut_relabel_boundary(
+    benchmark_dir: Path = typer.Option(..., "--benchmark-dir", help="Benchmark output directory."),
+    config: Path = typer.Option(..., "--config", "-c"),
+    teacher: str = typer.Option("samhq", "--teacher", help="Boundary teacher key from models.yaml."),
+    max_instances: int = typer.Option(0, "--max-instances", help="Limit re-label count (0 = all)."),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+    decisions: str = typer.Option(
+        "review,reject,accept",
+        "--decisions",
+        help="Comma-separated decisions eligible for re-label.",
+    ),
+) -> None:
+    """Re-run SamHQ on bad_boundary benchmark instances and patch outputs."""
+    from .eval.benchmark_bridge import relabel_bad_boundary_instances
+
+    cfg = _load_cfg(config)
+    decision_tuple = tuple(d.strip() for d in decisions.split(",") if d.strip())
+    stats = relabel_bad_boundary_instances(
+        cfg,
+        benchmark_dir,
+        teacher_key=teacher,
+        include_decisions=decision_tuple or ("review", "reject", "accept"),
+        max_instances=max_instances or None,
+        dry_run=dry_run,
+    )
+    typer.echo(json.dumps(stats, indent=2))
+
+
 @eval_app.command("coconut-apply-patch")
 def eval_coconut_apply_patch(
     config: Path = typer.Option(..., "--config", "-c"),

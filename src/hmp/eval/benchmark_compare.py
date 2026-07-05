@@ -20,6 +20,7 @@ DEFAULT_MODES: tuple[tuple[str, str], ...] = (
     ("gt_bbox", "sam2"),
     ("yolo_person", "grabcut"),
     ("yolo_person", "sam2"),
+    ("yolo_person", "samhq"),
 )
 
 
@@ -64,7 +65,7 @@ def _apply_production_preference(
         margin = float(compare_cfg.get("production_score_margin", margin))
     best_score = float(rows[0]["mode_score"])
     pool = [row for row in rows if float(row["mode_score"]) >= best_score - margin]
-    for sam_mode in ("sam2", "grabcut"):
+    for sam_mode in ("sam2", "samhq", "grabcut"):
         for row in pool:
             if row["detector_mode"] == prefer_det and row["sam_mode"] == sam_mode:
                 return row

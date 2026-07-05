@@ -154,3 +154,85 @@ def test_bootstrap_from_benchmark(tmp_path):
     hitl = read_jsonl_list(out["hitl_path"])
     assert len(hitl) == 1
     assert hitl[0]["decision"] == "reject"
+
+
+def test_export_bad_boundary_queue(tmp_path):
+    from hmp.eval.benchmark_bridge import export_bad_boundary_queue
+    from hmp.schemas import BenchmarkRecord
+
+    benchmark_dir = tmp_path / "bench"
+    benchmark_dir.mkdir()
+    write_jsonl(
+        benchmark_dir / "benchmark_records.jsonl",
+        [
+            BenchmarkRecord(
+                item_id="img1",
+                instance_id="person_0",
+                image_path="/tmp/img1.jpg",
+                gt_mask_path="/tmp/gt.png",
+                decision="review",
+                error_tags=["bad_boundary", "needs_scribble"],
+                mask_iou=0.6,
+                boundary_f_score=0.5,
+                elapsed_ms=10.0,
+            ),
+            BenchmarkRecord(
+                item_id="img2",
+                instance_id="person_0",
+                image_path="/tmp/img2.jpg",
+                gt_mask_path="/tmp/gt2.png",
+                decision="accept",
+                error_tags=["background_leak"],
+                mask_iou=0.9,
+                boundary_f_score=0.88,
+                elapsed_ms=10.0,
+            ),
+        ],
+    )
+    out = export_bad_boundary_queue(benchmark_dir)
+    rows = read_jsonl_list(out)
+    assert len(rows) == 1
+    assert rows[0]["teacher"] == "samhq"
+    assert "bad_boundary" in rows[0]["error_tags"]
+
+
+def test_relabel_bad_boundary_dry_run(tmp_path):
+    from hmp.eval.benchmark_bridge import relabel_bad_boundary_instances
+    from hmp.schemas import BenchmarkRecord
+
+    benchmark_dir = tmp_path / "bench"
+    benchmark_dir.mkdir()
+    write_jsonl(
+        benchmark_dir / "benchmark_records.jsonl",
+        [
+            BenchmarkRecord(
+                item_id="img1",
+                instance_id="person_0",
+                image_path="/tmp/img1.jpg",
+                gt_mask_path="/tmp/gt.png",
+                decision="review",
+                error_tags=["bad_boundary"],
+                mask_iou=0.6,
+                boundary_f_score=0.5,
+                elapsed_ms=10.0,
+            ),
+        ],
+    )
+    write_jsonl(
+        benchmark_dir / "annotations_pred.jsonl",
+        [
+            AnnotationRecord(
+                item_id="img1",
+                instances=[
+                    InstanceAnnotation(
+                        instance_id="person_0",
+                        bbox_xyxy=[0, 0, 10, 10],
+                    )
+                ],
+            )
+        ],
+    )
+    cfg = Config({"labeling": {"segment_teacher": "samhq"}})
+    stats = relabel_bad_boundary_instances(cfg, benchmark_dir, dry_run=True)
+    assert stats["targets"] == 1
+    assert stats["dry_run"] is True

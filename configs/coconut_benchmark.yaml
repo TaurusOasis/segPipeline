@@ -18,7 +18,7 @@ coconut_benchmark:
   limit: 128
   seed: 42
   detector_mode: gt_bbox          # gt_bbox | jitter_bbox | center_prior | yolo_person
-  sam_mode: grabcut               # grabcut | sam2 | oracle | noisy_oracle
+  sam_mode: grabcut               # grabcut | sam2 | samhq | oracle | noisy_oracle
   noise_level: 0.15
   yolo_weights: /home/genesis/Train/Code/ultralytics/yolo26s-seg.pt
   yolo_conf: 0.25
@@ -53,6 +53,7 @@ coconut_compare:
     - [gt_bbox, sam2]
     - [yolo_person, grabcut]
     - [yolo_person, sam2]
+    - [yolo_person, samhq]
 
 logging:
   level: INFO
