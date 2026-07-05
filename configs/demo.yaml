@@ -1,0 +1,47 @@
+project:
+  name: human-matting-pipeline-demo
+  root: .
+  seed: 42
+
+paths:
+  raw_dir: data/demo_raw
+  frames_dir: data/demo_frames
+  manifest_path: data/demo_manifests/manifest.jsonl
+  annotation_path: data/demo_annotations/annotations_raw.jsonl
+  refined_annotation_path: data/demo_annotations/annotations_refined.jsonl
+  masks_raw_dir: data/demo_masks_raw
+  masks_refined_dir: data/demo_masks_refined
+  yolo_dir: data/demo_yolo_seg
+  alpha_dir: data/demo_alpha
+  runs_dir: runs
+
+manifest:
+  media_type: image
+  tags: ["demo"]
+
+dummy:
+  width_fraction: 0.5
+  height_fraction: 0.7
+  score: 0.9
+
+local_postprocess:
+  remove_small_components: true
+  min_component_area: 16
+  fill_holes: true
+  keep_largest_component: false
+
+refine:
+  report_path: data/demo_annotations/refine_report.jsonl
+
+yolo_export:
+  val_ratio: 0.2
+  seed: 42
+  symlink: false
+  class_names: ["person"]
+
+trimap:
+  output_dir: data/demo_alpha/trimaps
+  radius: 6
+
+logging:
+  level: INFO

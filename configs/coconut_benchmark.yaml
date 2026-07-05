@@ -1,0 +1,56 @@
+project:
+  name: coconut-auto-label-benchmark
+  root: .
+  seed: 42
+
+local_postprocess:
+  remove_small_components: true
+  min_component_area: 16
+  fill_holes: true
+  keep_largest_component: false
+
+coconut_benchmark:
+  coconut_root: /home/genesis/Train/Dataset/coconut
+  image_root: /home/genesis/Train/Dataset/coco2017
+  json_path: /home/genesis/Train/Dataset/coconut/relabeled_coco_val.json
+  mask_dir: /home/genesis/Train/Dataset/coconut/relabeled_coco_val
+  image_subdir: val2017
+  limit: 128
+  seed: 42
+  detector_mode: gt_bbox          # gt_bbox | jitter_bbox | center_prior | yolo_person
+  sam_mode: grabcut               # grabcut | sam2 | oracle | noisy_oracle
+  noise_level: 0.15
+  yolo_weights: /home/genesis/Train/Code/ultralytics/yolo26s-seg.pt
+  yolo_conf: 0.25
+  yolo_iou: 0.7
+  yolo_match_iou: 0.3
+  sam2_weights: sam2_b.pt
+  device: 0
+  write_masks: true
+  worst_k: 10
+  visualization:
+    write_contact_sheet: true
+    max_items: 12
+    tile_width: 220
+  quality_gates:
+    min_accept_iou: 0.85
+    min_accept_boundary_f1: 0.85
+    min_review_iou: 0.50
+    min_review_boundary_f1: 0.65
+    max_accept_false_positive_ratio: 0.25
+    max_accept_false_negative_ratio: 0.25
+  output_dir: runs/coconut_benchmark
+
+coconut_compare:
+  output_dir: runs/coconut_compare
+  skip_existing: true
+  force_rerun: false
+  allow_oracle_selection: false
+  modes:
+    - [gt_bbox, grabcut]
+    - [gt_bbox, sam2]
+    - [yolo_person, grabcut]
+    - [yolo_person, sam2]
+
+logging:
+  level: INFO

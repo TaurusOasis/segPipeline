@@ -1,0 +1,5 @@
+path: /home/genesis/Train/Code/segPipeline/data/demo_yolo_seg
+train: images/train
+val: images/val
+names:
+  0: person

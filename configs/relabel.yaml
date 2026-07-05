@@ -1,0 +1,49 @@
+project:
+  name: human-matting-pipeline
+  root: .
+  seed: 42
+
+paths:
+  raw_dir: data/raw
+  manifest_path: data/manifests/manifest.jsonl
+  annotation_path: data/annotations/annotations_raw.jsonl
+  refined_annotation_path: data/annotations/annotations_refined.jsonl
+  masks_refined_dir: data/masks_refined
+  alpha_dir: data/alpha
+  runs_dir: runs
+
+trimap:
+  output_dir: data/alpha/trimaps
+  radius: 6
+
+adaptive_trimap:
+  output_dir: data/alpha/adaptive_trimaps
+  roi_dir: data/alpha/roi
+  base_radius: 8
+  max_radius: 24
+
+relabel:
+  queue_path: data/alpha/relabel_queue.jsonl
+  alpha_output_dir: data/alpha/mattes
+  alpha_exr_output_dir: data/alpha/mattes_exr
+  fused_alpha_dir: data/alpha/fused
+  bbox_output_dir: data/alpha/bboxes
+  masklet_output_dir: data/alpha/masklets
+  eval_map_output_dir: data/alpha/eval_maps
+  write_bbox_sidecars: true
+  candidate_tools:
+    data_source_sampling: ["SA-V", "YouTube", "OpenImages-video", "internal_real_video", "COCO-ReM", "COCONut", "COCO-Matting", "HIM", "HHM"]
+    video_preprocess_bucket: ["shot_detection", "duplicate_removal", "resolution_filter", "motion_filter"]
+    human_discovery: ["person_detector", "GroundingDINO", "pose", "face", "person_classifier"]
+    rl_prompt_agent: ["keyframe_select", "box_prompt", "positive_point", "negative_point", "mask_prompt", "scribble_gate"]
+    sam2_vos_masklet: ["SAM2", "VOS_tracker", "XMem", "Cutie"]
+    masklet_refinement: ["SAM2_correction", "SAMRefiner", "HQ-SAM", "coco_rem_boundary", "temporal_consistency_check", "identity_switch_check", "occlusion_handling"]
+    matting_critical_roi: ["adaptive_trimap", "roi_detector", "edge_aware_unknown", "hair_aware_unknown", "motion_aware_unknown"]
+    multi_branch_alpha: ["Bv_video_matting", "Bi_image_matting", "Bd_diffusion_refine", "Bs_segmentation_core"]
+    mqe_quality_evaluator: ["MQE", "core_hole_qa", "edge_alignment_qa", "temporal_flicker_qa", "instance_swap_qa"]
+    rl_fusion_repair_agent: ["choose_video", "choose_image", "choose_diffusion", "choose_core_mask", "send_to_human", "reject_clip"]
+    human_in_the_loop: ["scribble_correction", "point_correction", "mask_correction", "SAM2_repropagation", "boundary_paint", "trimap_edit", "alpha_teacher_rerun"]
+    final_label_output: ["alpha_png", "alpha_exr", "mask_png", "trimap_or_roi_png", "eval_map_png", "bbox_json", "prompt_history", "branch_source", "quality_score", "license_meta"]
+
+logging:
+  level: INFO

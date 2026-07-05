@@ -1,0 +1,10 @@
+# Lightweight runtime deps for the core hmp package.
+# Heavy/optional deps (torch, ultralytics, SAM, RKNN, ...) live in the other
+# requirements/*.txt files and are lazy-imported.
+pyyaml>=6.0
+pydantic>=2.0
+typer>=0.12
+numpy>=1.24
+pillow>=9.0
+opencv-python>=4.8
+tqdm>=4.0

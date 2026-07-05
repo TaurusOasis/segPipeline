@@ -1,0 +1,99 @@
+# Full 12-stage RL + diffusion mask-to-matte relabeling pipeline (steps 0-11).
+# Machine-readable stage registry: src/hmp/pipeline/stages.py
+# Human-readable guide: PIPELINE_zh.md
+
+project:
+  name: human-matting-pipeline
+  root: .
+  seed: 42
+
+paths:
+  raw_dir: data/raw
+  frames_dir: data/frames
+  manifest_path: data/manifests/manifest.jsonl
+  annotation_path: data/annotations/annotations_raw.jsonl
+  refined_annotation_path: data/annotations/annotations_refined.jsonl
+  masks_refined_dir: data/masks_refined
+  alpha_dir: data/alpha
+  runs_dir: runs
+
+pipeline:
+  version: 12
+  stages: 0-11
+  image_teacher_datasets: ["coco_rem", "coconut", "coco_matting", "him_100k", "hhm50k"]
+  video_sources: ["sa_v", "youtube", "openimages_video", "internal_real_video"]
+
+stratification:
+  buckets:
+    - person_distance
+    - hair_complexity
+    - occlusion
+    - multi_person
+    - motion_blur
+    - lighting
+    - background_complexity
+
+trimap:
+  output_dir: data/alpha/trimaps
+  radius: 6
+
+adaptive_trimap:
+  output_dir: data/alpha/adaptive_trimaps
+  roi_dir: data/alpha/roi
+  base_radius: 8
+  max_radius: 24
+
+alpha_branches:
+  Bv:
+    role: video_matting
+    command: >
+      python external/matting_teacher/run_bv.py
+      --image {image_path} --mask {mask_path} --trimap {trimap_path}
+      --output {output_path}
+  Bi:
+    role: image_matting
+    command: >
+      python external/matting_teacher/run_bi.py
+      --image {image_path} --mask {mask_path} --trimap {trimap_path}
+      --output {output_path}
+  Bd:
+    role: diffusion_refine
+    command: >
+      python external/matting_teacher/run_bd.py
+      --image {image_path} --mask {mask_path} --trimap {trimap_path}
+      --output {output_path}
+  Bs:
+    role: segmentation_core
+    command: >
+      python external/matting_teacher/run_bs.py
+      --image {image_path} --mask {mask_path}
+      --output {output_path}
+
+mqe:
+  output_path: data/alpha/mqe_report.jsonl
+  thresholds:
+    min_core_fill: 0.85
+    max_temporal_delta: 0.18
+    min_boundary_score: 0.55
+
+relabel:
+  queue_path: data/alpha/relabel_queue.jsonl
+  alpha_output_dir: data/alpha/mattes
+  alpha_exr_output_dir: data/alpha/mattes_exr
+  fused_alpha_dir: data/alpha/fused
+  bbox_output_dir: data/alpha/bboxes
+  masklet_output_dir: data/alpha/masklets
+  eval_map_output_dir: data/alpha/eval_maps
+  write_bbox_sidecars: true
+
+labeling:
+  yolo_weights: /home/genesis/Train/Code/ultralytics/yolo26s-seg.pt
+  yolo_conf: 0.25
+  yolo_iou: 0.7
+  sam2_weights: sam2_b.pt
+  segment_mode: sam2
+  device: 0
+  max_instances: 16
+
+logging:
+  level: INFO

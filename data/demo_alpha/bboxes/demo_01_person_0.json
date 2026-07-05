@@ -1,0 +1,58 @@
+{
+  "task_id": "demo_01_person_0",
+  "item_id": "demo_01",
+  "instance_id": "person_0",
+  "bbox_xyxy": [
+    24,
+    19,
+    72,
+    109
+  ],
+  "video_track_id": null,
+  "target_id": "person_0",
+  "prompt_history": [
+    {
+      "stage": "rl_prompt_agent",
+      "policy": "heuristic_v1",
+      "prompt_type": "box",
+      "bbox_xyxy": [
+        24,
+        19,
+        72,
+        109
+      ],
+      "keyframe_index": 0,
+      "confidence": 0.75,
+      "source": "dummy+refined_local"
+    },
+    {
+      "stage": "rl_prompt_agent",
+      "policy": "heuristic_v1",
+      "type": "positive_point",
+      "xy": [
+        48,
+        64
+      ],
+      "frame_index": 0
+    },
+    {
+      "stage": "rl_prompt_agent",
+      "policy": "heuristic_v1",
+      "type": "negative_point",
+      "xy": [
+        18,
+        8
+      ],
+      "frame_index": 0
+    },
+    {
+      "stage": "sam2_vos_masklet",
+      "prompt_type": "mask",
+      "mask_path": "/home/genesis/Train/Code/segPipeline/data/demo_masks_refined/demo_01_person_0.png",
+      "source": "dummy+refined_local"
+    }
+  ],
+  "license_meta": {
+    "source_dataset": "coco_rem"
+  }
+}

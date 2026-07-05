@@ -1,0 +1,22 @@
+project:
+  name: human-matting-pipeline
+  root: .
+  seed: 42
+
+paths:
+  raw_dir: data/raw
+  frames_dir: data/frames
+  manifest_path: data/manifests/manifest.jsonl
+  annotation_path: data/annotations/annotations_raw.jsonl
+  refined_annotation_path: data/annotations/annotations_refined.jsonl
+  masks_raw_dir: data/masks_raw
+  masks_refined_dir: data/masks_refined
+  yolo_dir: data/yolo_seg
+  alpha_dir: data/alpha
+  runs_dir: runs
+
+yolo_export:
+  val_ratio: 0.2
+  seed: 42
+  symlink: true
+  class_names: ["person"]

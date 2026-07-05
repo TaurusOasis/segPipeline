@@ -1,0 +1,379 @@
+version: 1
+last_verified: "2026-07-05"
+
+policy:
+  alpha_contract:
+    direct_alpha:
+      description: "Dataset provides alpha matte labels that can supervise matting losses after local license checks."
+      allowed_losses: ["alpha", "composition", "boundary", "temporal", "instance"]
+    relabel_source:
+      description: "Dataset provides hard masks, boxes, or masklets only. It must pass through mask-to-matte relabeling before alpha supervision."
+      allowed_losses: ["segmentation_core", "prompt", "tracking", "sampling"]
+  required_before_ingest:
+    - "Confirm license and redistribution constraints."
+    - "Record source URL, split, original IDs, and checksum if available."
+    - "Do not train alpha losses from binary masks unless they are explicitly converted and quality-scored as mattes."
+
+recommended_mix:
+  image_alpha_teacher:
+    datasets: ["hhm50k", "hhm2k", "p3m_10k", "him_100k", "hsm_200k", "coco_matting"]
+    objective: "High-quality single-frame human alpha, hair, fingers, clothing boundaries, and multi-person instances."
+  segmentation_core:
+    datasets: ["coconut", "coco_rem", "sama_coco", "open_images_v7", "objects365"]
+    objective: "Stable human core masks, low false positives, fewer holes, and better person/accessory coverage."
+  video_alpha_teacher:
+    datasets: ["videomatte240k", "vm800", "vmreal", "maggie_video"]
+    objective: "Temporal consistency and target-assigned video matting."
+  relabeled_real_video:
+    datasets: ["sa_v", "mose_v2", "burst", "youtube_vis", "lvos"]
+    objective: "SAM2/masklet-guided real-world video alpha relabeling with quality filtering."
+  edge_boundary:
+    datasets: ["hhm50k", "hqseg_44k", "dis5k", "p3m_10k", "synhairman"]
+    objective: "Fine structures, hair, hands, thin clothing, and difficult boundaries."
+
+datasets:
+  coco_matting:
+    display_name: "COCO-Matting / SEMat"
+    tier: 1
+    role: "direct_alpha"
+    modality: "image"
+    supervision: ["human_instance_alpha", "instance_mask"]
+    source_base: "COCO"
+    approximate_scale: "38,251 human instance-level alpha mattes"
+    best_for: ["mask_to_matte_validation", "complex_natural_images", "human_alpha_teacher"]
+    caveats:
+      - "Availability and license need local confirmation before ingest."
+      - "Image-only; no temporal coverage."
+    source_urls:
+      - "https://arxiv.org/html/2410.06593v1"
+
+  him_100k:
+    display_name: "HIM-100K / E2E-HIM"
+    tier: 1
+    role: "direct_alpha"
+    modality: "image"
+    supervision: ["human_instance_alpha", "segmentation_mask", "bbox"]
+    approximate_scale: ">100K human images, about 326K human instances"
+    best_for: ["multi_person_instance_matting", "instance_separation", "mask_guided_matting"]
+    caveats:
+      - "Confirm dataset access terms and exact train/val/test split."
+    source_urls:
+      - "https://arxiv.org/html/2403.01510v1"
+      - "https://github.com/aipixel/E2E-HIM"
+
+  hsm_200k:
+    display_name: "HSM-200K / Human Selective Matting"
+    tier: 1
+    role: "direct_alpha"
+    modality: "image"
+    supervision: ["selected_human_alpha", "bbox_prompt"]
+    approximate_scale: ">200K human images; paper reports more than 500K human instances"
+    best_for: ["selected_person_matting", "group_photos", "bbox_prompted_matting"]
+    caveats:
+      - "Confirm whether full data is downloadable and under what terms."
+    source_urls:
+      - "https://dl.acm.org/doi/10.1145/3640017"
+
+  hhm50k:
+    display_name: "HHM50K"
+    tier: 1
+    role: "direct_alpha"
+    modality: "image"
+    supervision: ["uhr_human_alpha"]
+    approximate_scale: "50,000 unique UHR images, average resolution about 4K"
+    best_for: ["high_resolution_teacher", "hair_detail", "boundary_refinement"]
+    caveats:
+      - "Large files; plan storage and preprocessing."
+    source_urls:
+      - "https://github.com/nowsyn/SparseMat"
+
+  hhm2k:
+    display_name: "HHM2K"
+    tier: 1
+    role: "direct_alpha"
+    modality: "image"
+    supervision: ["uhr_human_alpha"]
+    approximate_scale: "2,000 unique UHR evaluation images, average resolution about 4K"
+    best_for: ["high_resolution_eval", "boundary_eval"]
+    caveats:
+      - "Keep as evaluation/ablation set unless license permits training."
+    source_urls:
+      - "https://github.com/nowsyn/SparseMat"
+
+  p3m_10k:
+    display_name: "P3M-10K"
+    tier: 1
+    role: "direct_alpha"
+    modality: "image"
+    supervision: ["portrait_alpha"]
+    approximate_scale: "10,000 high-resolution face-blurred portrait images with alpha mattes"
+    best_for: ["portrait_matting", "privacy_preserving_training", "hair_boundary"]
+    caveats:
+      - "Portrait-heavy distribution; do not use as the only human matting source."
+    source_urls:
+      - "https://github.com/JizhiziLi/P3M"
+
+  videomatte240k:
+    display_name: "VideoMatte240K"
+    tier: 1
+    role: "direct_alpha"
+    modality: "video"
+    supervision: ["video_alpha", "foreground"]
+    approximate_scale: "484 green-screen videos, 240,709 unique frames"
+    best_for: ["video_matting_pretrain", "temporal_loss_bootstrap"]
+    caveats:
+      - "Green-screen/synthetic-composite bias."
+      - "Recent work reports coarse hair and temporal consistency limitations."
+    source_urls:
+      - "https://grail.cs.washington.edu/projects/background-matting-v2/"
+
+  vm800:
+    display_name: "VM800 / MatAnyone"
+    tier: 1
+    role: "direct_alpha"
+    modality: "video"
+    supervision: ["target_assigned_video_alpha", "first_frame_mask"]
+    approximate_scale: "Paper/project-specific; verify before ingest"
+    best_for: ["target_assigned_human_video_matting", "semantic_stability"]
+    caveats:
+      - "Confirm release status, license, and annotation details."
+    source_urls:
+      - "https://github.com/pq-yang/MatAnyone"
+
+  vmreal:
+    display_name: "VMReal / MatAnyone2"
+    tier: 1
+    role: "direct_alpha"
+    modality: "video"
+    supervision: ["real_world_video_alpha", "quality_scored_alpha"]
+    approximate_scale: "28K clips, 2.4M frames"
+    best_for: ["real_video_matting", "quality_evaluator_training", "long_range_video_matting"]
+    caveats:
+      - "Very new; confirm availability, license, and exact label format before planning training scale."
+    source_urls:
+      - "https://pq-yang.github.io/projects/MatAnyone2/"
+
+  maggie_image:
+    display_name: "MaGGIe I-HIM50K / M-HIM2K"
+    tier: 1
+    role: "direct_alpha"
+    modality: "image"
+    supervision: ["multi_human_instance_alpha", "mask_guidance"]
+    approximate_scale: "I-HIM50K synthesized from HHM50K foregrounds and BG20K backgrounds"
+    best_for: ["mask_guided_matting", "multi_person_composites", "mask_perturbation"]
+    caveats:
+      - "Synthetic composition should be balanced with real images."
+    source_urls:
+      - "https://maggie-matt.github.io/"
+
+  maggie_video:
+    display_name: "MaGGIe V-HIM2K5 / V-HIM60"
+    tier: 1
+    role: "direct_alpha"
+    modality: "video"
+    supervision: ["video_instance_alpha", "mask_guidance"]
+    approximate_scale: "Synthesized from VM108, VideoMatte240K, and CRGNN; verify exact release details"
+    best_for: ["video_instance_matting", "mask_guided_video_training"]
+    caveats:
+      - "Synthetic and benchmark-oriented; balance with real relabeled video."
+    source_urls:
+      - "https://maggie-matt.github.io/"
+
+  coconut:
+    display_name: "COCONut"
+    tier: 2
+    role: "relabel_source"
+    modality: "image"
+    supervision: ["semantic_mask", "instance_mask", "panoptic_mask"]
+    source_base: "COCO + Objects365"
+    approximate_scale: "383K images, more than 5.18M panoptic masks"
+    best_for: ["segmentation_core", "person_mask_prompt", "mask_to_matte_source"]
+    caveats:
+      - "Not alpha matte. Use only for hard-mask/core losses unless relabeled."
+    source_urls:
+      - "https://openaccess.thecvf.com/content/CVPR2024/html/Deng_COCONut_Modernizing_COCO_Segmentation_CVPR_2024_paper.html"
+
+  coco_rem:
+    display_name: "COCO-ReM"
+    tier: 2
+    role: "relabel_source"
+    modality: "image"
+    supervision: ["refined_instance_mask"]
+    source_base: "COCO-2017"
+    approximate_scale: "COCO-2017 refined masks; exact subset should be read from downloaded metadata"
+    best_for: ["person_core_mask", "trimap_seed", "coco_relabeling"]
+    caveats:
+      - "Not alpha matte."
+    source_urls:
+      - "https://github.com/kdexd/coco-rem"
+
+  sama_coco:
+    display_name: "Sama-COCO"
+    tier: 2
+    role: "relabel_source"
+    modality: "image"
+    supervision: ["instance_polygon", "crowd_mask"]
+    source_base: "COCO-2017"
+    approximate_scale: "COCO-2017 relabeling with more instances for 47 of 80 classes"
+    best_for: ["crowd_person_masks", "multi_person_sampling", "occlusion_cases"]
+    caveats:
+      - "Still hard segmentation polygons, not alpha."
+    source_urls:
+      - "https://www.sama.com/sama-coco-dataset"
+
+  sa_v:
+    display_name: "SA-V / SAM2"
+    tier: 2
+    role: "relabel_source"
+    modality: "video"
+    supervision: ["video_masklet", "object_track_mask"]
+    approximate_scale: "51K videos, 643K spatio-temporal masks/masklets"
+    best_for: ["video_masklet_guidance", "real_video_alpha_relabeling", "temporal_tracking"]
+    caveats:
+      - "Not alpha matte. Filter person tracks and run video matting teacher."
+      - "Released under CC BY 4.0 according to Meta SA-V page; verify local compliance."
+    source_urls:
+      - "https://ai.meta.com/datasets/segment-anything-video/"
+      - "https://github.com/facebookresearch/sam2/blob/main/sav_dataset/README.md"
+
+  sa_1b:
+    display_name: "SA-1B"
+    tier: 2
+    role: "relabel_source"
+    modality: "image"
+    supervision: ["class_agnostic_mask"]
+    approximate_scale: "11M images, 1.1B masks"
+    best_for: ["mask_prior", "prompt_sampling", "large_scale_candidate_pool"]
+    caveats:
+      - "Class-agnostic. Requires detector or grounding before person matting."
+    source_urls:
+      - "https://segment-anything.com/dataset/index.html"
+
+  hqseg_44k:
+    display_name: "HQSeg-44K / HQ-SAM"
+    tier: 2
+    role: "relabel_source"
+    modality: "image"
+    supervision: ["high_quality_binary_mask"]
+    approximate_scale: "44,320 high-accuracy mask annotations"
+    best_for: ["boundary_refinement", "thin_structure_mask_training"]
+    caveats:
+      - "Not human alpha and not video."
+    source_urls:
+      - "https://github.com/SysCV/sam-hq"
+
+  dis5k:
+    display_name: "DIS5K"
+    tier: 2
+    role: "relabel_source"
+    modality: "image"
+    supervision: ["fine_grained_binary_mask"]
+    approximate_scale: "5,470 images across 22 groups / 225 categories"
+    best_for: ["boundary_refinement", "fine_structure_negative_cases"]
+    caveats:
+      - "Not human-specific alpha."
+    source_urls:
+      - "https://xuebinqin.github.io/dis/index.html"
+
+  open_images_v7:
+    display_name: "OpenImages V7"
+    tier: 2
+    role: "relabel_source"
+    modality: "image"
+    supervision: ["labels", "boxes", "segmentation_masks", "relationships"]
+    approximate_scale: "About 9M images with multi-type annotations"
+    best_for: ["real_world_sampling_pool", "person_clothing_accessory_context"]
+    caveats:
+      - "Mask completeness and quality vary. Use as sampling pool."
+    source_urls:
+      - "https://storage.googleapis.com/openimages/web/index.html"
+
+  objects365:
+    display_name: "Objects365"
+    tier: 2
+    role: "relabel_source"
+    modality: "image"
+    supervision: ["bbox"]
+    approximate_scale: "Large-scale 365-category object detection dataset; exact version varies"
+    best_for: ["detector_pretrain", "real_world_person_context", "accessory_occlusion_sampling"]
+    caveats:
+      - "Mostly detection labels. Prefer COCONut if refined segmentation is needed."
+    source_urls:
+      - "https://www.objects365.org/"
+
+  vim50:
+    display_name: "VIM50"
+    tier: 3
+    role: "benchmark"
+    modality: "video"
+    supervision: ["video_instance_alpha"]
+    approximate_scale: "50 multi-human video clips"
+    best_for: ["video_instance_matting_eval", "ablation"]
+    caveats:
+      - "Small benchmark; not a primary training set."
+    source_urls: []
+
+  mose_v2:
+    display_name: "MOSE / MOSEv2"
+    tier: 3
+    role: "relabel_source"
+    modality: "video"
+    supervision: ["vos_mask", "object_track"]
+    approximate_scale: "MOSEv2 reports 5,024 videos and more than 701K masks"
+    best_for: ["occlusion_eval", "reappearance", "long_video_generalization"]
+    caveats:
+      - "Not alpha matte."
+    source_urls:
+      - "https://henghuiding.github.io/MOSE/"
+
+  burst:
+    display_name: "BURST"
+    tier: 3
+    role: "relabel_source"
+    modality: "video"
+    supervision: ["object_track", "per_frame_mask"]
+    approximate_scale: "2,914 videos, 16,089 object tracks, about 600K masks"
+    best_for: ["multi_object_tracking", "person_object_interaction", "temporal_identity"]
+    caveats:
+      - "Not alpha matte."
+    source_urls:
+      - "https://github.com/Ali2500/BURST-benchmark"
+
+  youtube_vis:
+    display_name: "YouTube-VIS"
+    tier: 3
+    role: "relabel_source"
+    modality: "video"
+    supervision: ["video_instance_segmentation"]
+    approximate_scale: "2019 version has 2,238 train / 302 val / 343 test videos"
+    best_for: ["video_instance_baseline", "tracking_eval"]
+    caveats:
+      - "Lower relabel priority than SA-V, MOSEv2, and BURST."
+    source_urls:
+      - "https://youtube-vos.org/dataset/vis/"
+
+  lvos:
+    display_name: "LVOS"
+    tier: 3
+    role: "relabel_source"
+    modality: "video"
+    supervision: ["long_term_vos_mask"]
+    approximate_scale: "220 videos, about 421 minutes, dense masks at 6 fps"
+    best_for: ["long_term_tracking", "memory_drift_eval", "target_reappearance"]
+    caveats:
+      - "Not alpha matte."
+    source_urls:
+      - "https://lingyihongfd.github.io/lvos.github.io/"
+
+  synhairman:
+    display_name: "SynHairMan"
+    tier: 3
+    role: "direct_alpha"
+    modality: "video"
+    supervision: ["synthetic_video_alpha", "hair_detail"]
+    approximate_scale: "Synthetic 4K human video clips; verify exact release details"
+    best_for: ["hair_boundary_video", "fine_temporal_detail"]
+    caveats:
+      - "Synthetic domain gap. Use as supplement only."
+    source_urls:
+      - "https://arxiv.org/html/2508.07905v1"

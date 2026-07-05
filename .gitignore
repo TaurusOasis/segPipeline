@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Project data & artifacts (never commit)
+data/raw/
+data/frames/
+data/manifests/
+data/annotations/
+data/masks_raw/
+data/masks_refined/
+data/yolo_seg/
+data/alpha/
+data/calibration/
+runs/
+*.onnx
+*.rknn
+*.pt
+*.pth
+*.engine
+
+# External vendored research repos
+external/*/
+external/**/
+
+# Weights / caches
+weights/
+.cache/
+*.whl
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store

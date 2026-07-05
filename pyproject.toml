@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "human-matting-pipeline"
+version = "0.1.0"
+description = "Human segmentation + video matting training pipeline (hmp)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "hmp" }]
+# NOTE: only lightweight runtime deps live here. Heavy/optional deps
+# (torch, ultralytics, cleanvision, fastdup, rknn, ...) are installed from
+# requirements/*.txt and lazy-imported inside the modules that need them.
+dependencies = [
+    "pyyaml>=6.0",
+    "pydantic>=2.0",
+    "typer>=0.12",
+    "numpy>=1.24",
+    "pillow>=9.0",
+    "opencv-python>=4.8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+hmp = "hmp.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
