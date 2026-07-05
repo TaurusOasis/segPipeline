@@ -440,7 +440,7 @@ def run_coconut_benchmark(
                 device=device,
             )
 
-        for person in sample.persons:
+        for idx, person in enumerate(sample.persons):
             inst_t0 = time.perf_counter()
             gt = person.mask
             det_bbox, det_meta = _detect_person_bbox(
@@ -452,6 +452,7 @@ def run_coconut_benchmark(
                 yolo_used=yolo_used,
                 yolo_match_iou=yolo_match_iou,
             )
+            neighbor_bboxes = [p.bbox_xyxy for j, p in enumerate(sample.persons) if j != idx]
             result = label_instance_from_bbox(
                 image_bgr,
                 bbox_xyxy=det_bbox,
@@ -462,6 +463,7 @@ def run_coconut_benchmark(
                 gt_mask=gt,
                 multi_person=len(sample.persons) > 1,
                 detector_meta=det_meta,
+                neighbor_bboxes=neighbor_bboxes,
             )
             pred = result.mask
             prompt = result.prompt

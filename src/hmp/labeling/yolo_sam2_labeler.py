@@ -54,10 +54,12 @@ class YoloSam2Labeler(Labeler):
 
         instances: list[InstanceAnnotation] = []
         for idx, det in enumerate(detections):
+            neighbor_bboxes = [d.bbox_xyxy for j, d in enumerate(detections) if j != idx]
             prompt = plan_prompts(
                 bbox_xyxy=det.bbox_xyxy,
                 width=item.width,
                 height=item.height,
+                neighbor_bboxes=neighbor_bboxes,
             )
             if self.runtime.segment_mode == "sam2":
                 mask = segment_with_sam2(

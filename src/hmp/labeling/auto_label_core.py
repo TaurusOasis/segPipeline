@@ -101,12 +101,16 @@ def label_instance_from_bbox(
     multi_person: bool = False,
     detector_meta: dict[str, float] | None = None,
     det_score: float | None = None,
+    neighbor_bboxes: list[list[int]] | None = None,
+    boundary_f1: float | None = None,
 ) -> InstanceLabelResult:
     prompt = plan_prompts(
         bbox_xyxy=bbox_xyxy,
         width=width,
         height=height,
         gt_mask=gt_mask,
+        neighbor_bboxes=neighbor_bboxes,
+        boundary_f1=boundary_f1,
     )
     mask = segment_from_prompt(image_bgr, prompt, runtime, gt_mask=gt_mask)
     mask = postprocess_from_config(mask, cfg)

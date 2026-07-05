@@ -25,7 +25,14 @@ def _prompts_to_sam_kwargs(decision: PromptDecision) -> dict[str, object]:
             x, y = prompt["xy"]  # type: ignore[index]
             points.append([int(x), int(y)])
             labels.append(0)
-    # Ultralytics SAM2 expects either bbox *or* point prompts per call, not both.
+    # Ultralytics stateless SAM.predict accepts either bbox *or* point prompts
+    # per call, not both. When a box is present we prefer it (more reliable for
+    # person localization), which means neighbor negative points are *not*
+    # consumed here yet. Feeding box + negative points together to suppress
+    # multi-person identity leakage requires the stateful SAM2 predictor
+    # (set_image + add_new_points_or_box) — see A2 masklet work. The multi-person
+    # signal still flows through prompt.error_tags / needs_scribble / confidence
+    # into decision_and_tags for review routing.
     if bboxes:
         return {"bboxes": bboxes[0] if len(bboxes) == 1 else bboxes}
     if points:

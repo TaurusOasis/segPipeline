@@ -1,0 +1,11 @@
+{
+  "quality_score": 0.84847691655159,
+  "quality_scores": {
+    "core_score": 0.9414306879043579,
+    "boundary_score": 0.45247697830200195,
+    "temporal_score": 1.0,
+    "instance_score": 1.0
+  },
+  "review_required": true,
+  "status": "review"
+}

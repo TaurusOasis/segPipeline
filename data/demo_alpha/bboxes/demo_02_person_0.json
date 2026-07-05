@@ -13,7 +13,7 @@
   "prompt_history": [
     {
       "stage": "rl_prompt_agent",
-      "policy": "heuristic_v1",
+      "policy": "heuristic_v2",
       "prompt_type": "box",
       "bbox_xyxy": [
         24,
@@ -27,7 +27,7 @@
     },
     {
       "stage": "rl_prompt_agent",
-      "policy": "heuristic_v1",
+      "policy": "heuristic_v2",
       "type": "positive_point",
       "xy": [
         48,
@@ -37,7 +37,7 @@
     },
     {
       "stage": "rl_prompt_agent",
-      "policy": "heuristic_v1",
+      "policy": "heuristic_v2",
       "type": "negative_point",
       "xy": [
         18,
