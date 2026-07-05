@@ -813,5 +813,91 @@ def pipeline_bootstrap_from_benchmark(
         typer.echo(f"{key}\t{path}")
 
 
+# ---------------------------------------------------------------------------
+# adapters group (external research-repo subprocess adapters, Step 4/5/6/7)
+# ---------------------------------------------------------------------------
+adapters_app = typer.Typer(help="Inspect and dry-run external research-repo adapters.")
+app.add_typer(adapters_app, name="adapters")
+
+
+def _parse_kv(items: list[str], flag: str) -> dict[str, str]:
+    """Parse repeated ``--flag key=value`` strings into a dict."""
+    out: dict[str, str] = {}
+    for item in items or []:
+        if "=" not in item:
+            raise typer.BadParameter(f"{flag} value must be 'key=value', got {item!r}")
+        k, v = item.split("=", 1)
+        out[k.strip()] = v.strip()
+    return out
+
+
+@adapters_app.command("list")
+def adapters_list(
+    group: Optional[str] = typer.Option(None, "--group", help="Filter by group (masklet, mask_refine, ...)."),
+) -> None:
+    """List all registered external-repo adapter integrations."""
+    from .adapters import load_registry
+
+    reg = load_registry()
+    specs = reg.by_group(group) if group else [reg.specs[n] for n in sorted(reg.names())]
+    for spec in specs:
+        typer.echo(
+            f"{spec.name}\t{spec.group}\tp{spec.priority}\t{spec.license_review}\t"
+            f"{','.join(spec.expected_outputs)}"
+        )
+
+
+@adapters_app.command("dry-run")
+def adapters_dry_run(
+    name: str = typer.Option(..., "--name", help="Integration name (e.g. samrefiner)."),
+    input: list[str] = typer.Option(None, "--input", help="key=value input mapping (repeatable)."),
+    output: list[str] = typer.Option(None, "--output", help="key=value output mapping (repeatable)."),
+    param: list[str] = typer.Option(None, "--param", help="key=value param mapping (repeatable)."),
+    workdir: Optional[Path] = typer.Option(None, "--workdir", help="Adapter workdir (default runs/adapters/<name>)."),
+    command_template: Optional[str] = typer.Option(
+        None, "--command-template", help="Override the default command template (comma-separated argv)."
+    ),
+) -> None:
+    """Resolve an adapter's command + env + outputs without executing it.
+
+    Inputs/outputs/params use ``key=value`` repeated flags, e.g.
+    ``--input image=a.png --output refined_mask=out.png``.
+    """
+    import json as _json
+
+    from .adapters import build_adapter
+
+    if workdir is None:
+        workdir = Path("runs/adapters") / name
+    inputs = _parse_kv(input, "--input")
+    outputs = _parse_kv(output, "--output")
+    params = _parse_kv(param, "--param")
+    tmpl = command_template.split(",") if command_template else None
+    adapter = build_adapter(
+        name,
+        workdir=str(workdir),
+        command_template=tmpl,
+    )
+    # Auto-supply the default repo python if the template references it.
+    full_params = dict(params)
+    if "{param_repo_python}" in " ".join(adapter.command_template):
+        full_params.setdefault("repo_python", adapter.env_overlay.get("REPO_PYTHON", "python"))
+    res = adapter.dry_run(inputs, outputs, params=full_params)
+    typer.echo(_json.dumps({
+        "name": res.name,
+        "command": res.command,
+        "env": res.env,
+        "outputs": res.outputs,
+        "dry_run": res.dry_run,
+        "spec": {
+            "group": adapter.spec.group,
+            "url": adapter.spec.url,
+            "adapter_target": adapter.spec.adapter_target,
+            "expected_outputs": adapter.spec.expected_outputs,
+            "license_review": adapter.spec.license_review,
+        },
+    }, indent=2))
+
+
 if __name__ == "__main__":  # pragma: no cover
     app()
