@@ -199,12 +199,14 @@ DEFAULT_COMMAND_TEMPLATES: dict[str, list[str]] = {
         "{param_repo_python}", "-m", "hmp.adapters.hitl.fiftyone_view",
         "--dataset-dir", "{input_dataset_dir}",
         "--view-spec", "{param_view_spec}",
+        "--dataset-view", "{output_dataset_view}",
         "--export", "{output_review_selection}",
     ],
     "cvat": [
         "{param_repo_python}", "-m", "hmp.adapters.hitl.cvat_bridge",
         "--task-id", "{param_task_id}",
         "--export", "{output_human_edits}",
+        "--corrected-prompts", "{output_corrected_prompts}",
         "--audit-log", "{output_audit_log}",
     ],
     "label_studio": [
@@ -244,6 +246,9 @@ ADAPTER_INPUT_KEYS: dict[str, list[str]] = {
     "groundingdino": ["image"],
     "ultralytics_yolo": ["image"],
     "mmagic": ["pred_dir", "gt_dir", "trimap_dir"],
+    "fiftyone": ["dataset_dir"],
+    "gymnasium": ["env_config"],
+    "stable_baselines3": ["env_config"],
 }
 
 # Documented output keys per integration (subset; aligns with registry
@@ -270,6 +275,11 @@ ADAPTER_OUTPUT_KEYS: dict[str, list[str]] = {
     "groundingdino": ["bbox", "score", "phrase"],
     "ultralytics_yolo": ["bbox", "mask", "score"],
     "mmagic": ["sad", "mse", "gradient", "connectivity"],
+    "fiftyone": ["dataset_view", "review_selection"],
+    "cvat": ["human_edits", "corrected_prompts", "audit_log"],
+    "label_studio": ["human_edits", "audit_log"],
+    "gymnasium": ["agent_episode", "reward_trace"],
+    "stable_baselines3": ["policy_checkpoint", "decision_trace"],
 }
 
 
