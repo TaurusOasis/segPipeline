@@ -55,6 +55,19 @@ def test_input_output_keys_subset_of_template_placeholders():
             assert f"{{output_{k}}}" in tmpl, f"{name}: output {k!r} not in template"
 
 
+def test_concrete_adapter_output_keys_match_registry_expected_outputs():
+    # Integrations that have a concrete typed adapter (samrefiner, hq_sam,
+    # raft, gmflow, matanyone) must produce outputs whose keys exactly match
+    # the registry expected_outputs, so validate_outputs passes.
+    reg = load_registry()
+    concrete = ["samrefiner", "hq_sam", "raft", "gmflow", "matanyone"]
+    for name in concrete:
+        assert set(ADAPTER_OUTPUT_KEYS[name]) == set(reg.get(name).expected_outputs), (
+            f"{name}: ADAPTER_OUTPUT_KEYS {ADAPTER_OUTPUT_KEYS[name]} != "
+            f"registry expected_outputs {reg.get(name).expected_outputs}"
+        )
+
+
 # ---------------------------------------------------------------------- #
 # build_adapter
 # ---------------------------------------------------------------------- #

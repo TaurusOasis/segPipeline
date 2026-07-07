@@ -108,7 +108,7 @@ DEFAULT_COMMAND_TEMPLATES: dict[str, list[str]] = {
         "{param_repo_python}", "-m", "matanyone.infer",
         "--image-dir", "{input_image_dir}",
         "--target-mask", "{input_target_mask}",
-        "--output-dir", "{output_alpha_video_dir}",
+        "--output", "{output_alpha_video}",
         "--branch-source", "{output_branch_source}",
     ],
     "matanyone2": [
@@ -165,15 +165,15 @@ DEFAULT_COMMAND_TEMPLATES: dict[str, list[str]] = {
         "{param_repo_python}", "-m", "raft.compute_flow",
         "--prev", "{input_prev_alpha}",
         "--cur", "{input_cur_alpha}",
-        "--flow-out", "{output_flow}",
         "--error-json", "{output_temporal_error}",
+        "--consistency-json", "{output_flow_consistency_score}",
     ],
     "gmflow": [
         "{param_repo_python}", "-m", "gmflow.compute_flow",
         "--prev", "{input_prev_alpha}",
         "--cur", "{input_cur_alpha}",
-        "--flow-out", "{output_flow}",
         "--error-json", "{output_temporal_error}",
+        "--consistency-json", "{output_flow_consistency_score}",
     ],
     "mmagic": [
         "{param_repo_python}", "-m", "mmagic.matting_metrics",
@@ -237,11 +237,11 @@ ADAPTER_OUTPUT_KEYS: dict[str, list[str]] = {
     "hq_sam": ["refined_mask"],
     "cutie": ["masklet_dir"],
     "xmem": ["masklet_dir"],
-    "matanyone": ["alpha_video_dir", "branch_source"],
+    "matanyone": ["alpha_video", "branch_source"],
     "maggie": ["alpha"],
     "semat": ["alpha_image"],
-    "raft": ["flow", "temporal_error"],
-    "gmflow": ["flow", "temporal_error"],
+    "raft": ["temporal_error", "flow_consistency_score"],
+    "gmflow": ["temporal_error", "flow_consistency_score"],
     "videomama": ["alpha_diffusion_dir", "refine_roi"],
 }
 
