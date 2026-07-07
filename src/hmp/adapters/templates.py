@@ -150,7 +150,7 @@ DEFAULT_COMMAND_TEMPLATES: dict[str, list[str]] = {
         "--image-dir", "{input_image_dir}",
         "--coarse-alpha-dir", "{input_coarse_alpha_dir}",
         "--roi", "{input_roi}",
-        "--output-dir", "{output_alpha_diffusion_dir}",
+        "--output", "{output_alpha_diffusion}",
         "--refine-roi", "{output_refine_roi}",
     ],
     "diffmatte": [
@@ -246,7 +246,9 @@ ADAPTER_OUTPUT_KEYS: dict[str, list[str]] = {
     "rvm": ["alpha_video"],
     "raft": ["temporal_error", "flow_consistency_score"],
     "gmflow": ["temporal_error", "flow_consistency_score"],
-    "videomama": ["alpha_diffusion_dir", "refine_roi"],
+    "videomama": ["alpha_diffusion", "refine_roi"],
+    "diffmatte": ["alpha_diffusion"],
+    "sdmatte": ["alpha_diffusion"],
 }
 
 
