@@ -124,6 +124,7 @@ DEFAULT_COMMAND_TEMPLATES: dict[str, list[str]] = {
         "--image", "{input_image}",
         "--instance-mask", "{input_instance_mask}",
         "--output", "{output_alpha}",
+        "--instance-output", "{output_instance_alpha}",
     ],
     "semat": [
         "{param_repo_python}", "-m", "semat.infer",
@@ -140,7 +141,7 @@ DEFAULT_COMMAND_TEMPLATES: dict[str, list[str]] = {
     "rvm": [
         "{param_repo_python}", "-m", "rvm.infer",
         "--image-dir", "{input_image_dir}",
-        "--output-dir", "{output_alpha_video_dir}",
+        "--output", "{output_alpha_video}",
     ],
     "videomama": [
         "{param_repo_python}", "-m", "videomama.refine",
@@ -238,8 +239,9 @@ ADAPTER_OUTPUT_KEYS: dict[str, list[str]] = {
     "cutie": ["masklet_dir"],
     "xmem": ["masklet_dir"],
     "matanyone": ["alpha_video", "branch_source"],
-    "maggie": ["alpha"],
+    "maggie": ["alpha", "instance_alpha"],
     "semat": ["alpha_image"],
+    "rvm": ["alpha_video"],
     "raft": ["temporal_error", "flow_consistency_score"],
     "gmflow": ["temporal_error", "flow_consistency_score"],
     "videomama": ["alpha_diffusion_dir", "refine_roi"],
