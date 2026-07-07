@@ -45,6 +45,72 @@ from .templates import (
     template_for,
 )
 
+
+def _build_concrete_registry() -> "dict[str, type]":
+    """Build the name -> concrete adapter class map (import-side-effect free)."""
+    from .active_labeling import GymnasiumAdapter, StableBaselines3Adapter
+    from .detection import GroundedSam2Adapter, GroundingDinoAdapter, YoloDetectAdapter
+    from .diffusion import DiffMatteAdapter, SDMatteAdapter, VideoMaMaAdapter
+    from .hitl import CvatAdapter, FiftyoneAdapter, LabelStudioAdapter
+    from .mask_refine import CascadePSPAdapter, HqSamAdapter, SamRefinerAdapter
+    from .matting import (
+        MaggieAdapter,
+        MatAnyone2Adapter,
+        MatAnyoneAdapter,
+        MattingAnythingAdapter,
+        RvmAdapter,
+        SematAdapter,
+    )
+    from .qa import MmagicMetricsAdapter, RaftAdapter
+    from .vos import CutieAdapter, XMemAdapter
+
+    return {
+        # mask_refine
+        "samrefiner": SamRefinerAdapter,
+        "hq_sam": HqSamAdapter,
+        "cascadepsp": CascadePSPAdapter,
+        # matting
+        "matanyone": MatAnyoneAdapter,
+        "matanyone2": MatAnyone2Adapter,
+        "semat": SematAdapter,
+        "matting_anything": MattingAnythingAdapter,
+        "maggie": MaggieAdapter,
+        "rvm": RvmAdapter,
+        # vos
+        "cutie": CutieAdapter,
+        "xmem": XMemAdapter,
+        # diffusion
+        "videomama": VideoMaMaAdapter,
+        "diffmatte": DiffMatteAdapter,
+        "sdmatte": SDMatteAdapter,
+        # qa
+        "raft": RaftAdapter,
+        "mmagic": MmagicMetricsAdapter,
+        # detection
+        "grounded_sam2": GroundedSam2Adapter,
+        "groundingdino": GroundingDinoAdapter,
+        "ultralytics_yolo": YoloDetectAdapter,
+        # hitl / data_management
+        "fiftyone": FiftyoneAdapter,
+        "cvat": CvatAdapter,
+        "label_studio": LabelStudioAdapter,
+        # active_labeling
+        "gymnasium": GymnasiumAdapter,
+        "stable_baselines3": StableBaselines3Adapter,
+    }
+
+
+#: ``name -> concrete :class:`SubprocessAdapter` subclass`` map for the 25
+#: integrations that have a typed adapter. Built eagerly at import (the group
+#: modules only define lightweight subclasses, no torch/ultralytics).
+CONCRETE_ADAPTERS: dict[str, type] = _build_concrete_registry()
+
+
+def get_concrete_adapter_class(name: str) -> "type | None":
+    """Return the concrete adapter class for ``name`` (None if none exists)."""
+    return CONCRETE_ADAPTERS.get(name)
+
+
 __all__ = [
     "AdapterSpec",
     "ExternalAdapter",
@@ -58,4 +124,6 @@ __all__ = [
     "build_adapter",
     "dry_run_adapter",
     "template_for",
+    "CONCRETE_ADAPTERS",
+    "get_concrete_adapter_class",
 ]

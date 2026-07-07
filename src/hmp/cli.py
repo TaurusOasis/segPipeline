@@ -834,15 +834,20 @@ def _parse_kv(items: list[str], flag: str) -> dict[str, str]:
 @adapters_app.command("list")
 def adapters_list(
     group: Optional[str] = typer.Option(None, "--group", help="Filter by group (masklet, mask_refine, ...)."),
+    typed: bool = typer.Option(False, "--typed", help="Only show integrations with a concrete typed adapter class."),
 ) -> None:
     """List all registered external-repo adapter integrations."""
-    from .adapters import load_registry
+    from .adapters import get_concrete_adapter_class, load_registry
 
     reg = load_registry()
     specs = reg.by_group(group) if group else [reg.specs[n] for n in sorted(reg.names())]
     for spec in specs:
+        has_concrete = get_concrete_adapter_class(spec.name) is not None
+        if typed and not has_concrete:
+            continue
         typer.echo(
             f"{spec.name}\t{spec.group}\tp{spec.priority}\t{spec.license_review}\t"
+            f"{'typed' if has_concrete else 'generic'}\t"
             f"{','.join(spec.expected_outputs)}"
         )
 
