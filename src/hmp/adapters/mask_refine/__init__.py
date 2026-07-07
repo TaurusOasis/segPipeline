@@ -7,19 +7,14 @@ the generic contract into a typed, mask-refine-shaped API:
   external SAMRefiner repo (``refined_mask`` + ``mask_quality`` outputs).
 * :class:`HqSamAdapter` — SAM-HQ boundary refinement from a box prompt
   (``refined_mask`` output).
-
-These wrap the catalog templates from :mod:`hmp.adapters.templates`; the
-actual external repo is invoked as a subprocess in a GPU env. The typed
-``refine`` / ``refine_batch`` helpers build the input/output maps, call
-:meth:`ExternalAdapter.run` (or :meth:`ExternalAdapter.dry_run`), validate
-outputs, and emit provenance rows — so the contract is exercised
-end-to-end without the repo present (tests use a mock command that writes
-the output file).
+* :class:`CascadePSPAdapter` — high-resolution mask refinement (priority-3,
+  ``refined_mask`` output).
 """
 
 from __future__ import annotations
 
+from .cascadepsp import CascadePSPAdapter
 from .hq_sam import HqSamAdapter
 from .samrefiner import SamRefinerAdapter
 
-__all__ = ["SamRefinerAdapter", "HqSamAdapter"]
+__all__ = ["SamRefinerAdapter", "HqSamAdapter", "CascadePSPAdapter"]

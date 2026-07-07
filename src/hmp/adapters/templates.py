@@ -117,8 +117,8 @@ DEFAULT_COMMAND_TEMPLATES: dict[str, list[str]] = {
         "{param_repo_python}", "-m", "matanyone2.infer",
         "--image-dir", "{input_image_dir}",
         "--target-mask", "{input_target_mask}",
-        "--output-dir", "{output_alpha_video_dir}",
-        "--eval-map-dir", "{output_eval_map_dir}",
+        "--output", "{output_alpha_video}",
+        "--eval-map", "{output_eval_map}",
         "--quality-json", "{output_quality_score}",
     ],
     "maggie": [
@@ -241,14 +241,17 @@ ADAPTER_OUTPUT_KEYS: dict[str, list[str]] = {
     "cutie": ["masklet", "track_id"],
     "xmem": ["masklet", "track_id"],
     "matanyone": ["alpha_video", "branch_source"],
+    "matanyone2": ["alpha_video", "eval_map", "quality_score"],
     "maggie": ["alpha", "instance_alpha"],
     "semat": ["alpha_image"],
     "rvm": ["alpha_video"],
+    "matting_anything": ["alpha_image"],
     "raft": ["temporal_error", "flow_consistency_score"],
     "gmflow": ["temporal_error", "flow_consistency_score"],
     "videomama": ["alpha_diffusion", "refine_roi"],
     "diffmatte": ["alpha_diffusion"],
     "sdmatte": ["alpha_diffusion"],
+    "cascadepsp": ["refined_mask"],
 }
 
 
