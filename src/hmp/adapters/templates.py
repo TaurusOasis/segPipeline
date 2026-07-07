@@ -59,19 +59,26 @@ DEFAULT_COMMAND_TEMPLATES: dict[str, list[str]] = {
         "{param_repo_python}", "-m", "grounded_sam2.detect",
         "--image", "{input_image}",
         "--text-prompt", "{param_text_prompt}",
-        "--output-json", "{output_person_candidates}",
+        "--output-candidates", "{output_person_candidates}",
+        "--output-bbox", "{output_bbox}",
+        "--output-rle", "{output_rle_mask}",
+        "--output-score", "{output_score}",
     ],
     "groundingdino": [
         "{param_repo_python}", "-m", "groundingdino.predict",
         "--image", "{input_image}",
         "--text-prompt", "{param_text_prompt}",
-        "--output-json", "{output_bbox}",
+        "--output-bbox", "{output_bbox}",
+        "--output-score", "{output_score}",
+        "--output-phrase", "{output_phrase}",
     ],
     "ultralytics_yolo": [
         "{param_repo_python}", "-m", "hmp.yolo.detect_cli",
         "--image", "{input_image}",
         "--weights", "{param_weights}",
-        "--output-json", "{output_bbox}",
+        "--output-bbox", "{output_bbox}",
+        "--output-mask", "{output_mask}",
+        "--output-score", "{output_score}",
     ],
     "cutie": [
         "{param_repo_python}", "-m", "cutie.inference",
@@ -183,7 +190,10 @@ DEFAULT_COMMAND_TEMPLATES: dict[str, list[str]] = {
         "--pred-dir", "{input_pred_dir}",
         "--gt-dir", "{input_gt_dir}",
         "--trimap-dir", "{input_trimap_dir}",
-        "--output-json", "{output_metrics}",
+        "--output-sad", "{output_sad}",
+        "--output-mse", "{output_mse}",
+        "--output-gradient", "{output_gradient}",
+        "--output-connectivity", "{output_connectivity}",
     ],
     "fiftyone": [
         "{param_repo_python}", "-m", "hmp.adapters.hitl.fiftyone_view",
@@ -230,6 +240,10 @@ ADAPTER_INPUT_KEYS: dict[str, list[str]] = {
     "raft": ["prev_alpha", "cur_alpha"],
     "gmflow": ["prev_alpha", "cur_alpha"],
     "videomama": ["image_dir", "coarse_alpha_dir", "roi"],
+    "grounded_sam2": ["image"],
+    "groundingdino": ["image"],
+    "ultralytics_yolo": ["image"],
+    "mmagic": ["pred_dir", "gt_dir", "trimap_dir"],
 }
 
 # Documented output keys per integration (subset; aligns with registry
@@ -252,6 +266,10 @@ ADAPTER_OUTPUT_KEYS: dict[str, list[str]] = {
     "diffmatte": ["alpha_diffusion"],
     "sdmatte": ["alpha_diffusion"],
     "cascadepsp": ["refined_mask"],
+    "grounded_sam2": ["person_candidates", "bbox", "rle_mask", "score"],
+    "groundingdino": ["bbox", "score", "phrase"],
+    "ultralytics_yolo": ["bbox", "mask", "score"],
+    "mmagic": ["sad", "mse", "gradient", "connectivity"],
 }
 
 

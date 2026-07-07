@@ -65,6 +65,7 @@ def test_concrete_adapter_output_keys_match_registry_expected_outputs():
         "semat", "maggie", "rvm", "cutie", "xmem",
         "videomama", "diffmatte", "sdmatte",
         "matanyone2", "matting_anything", "cascadepsp",
+        "grounded_sam2", "groundingdino", "ultralytics_yolo", "mmagic",
     ]
     for name in concrete:
         assert set(ADAPTER_OUTPUT_KEYS[name]) == set(reg.get(name).expected_outputs), (
