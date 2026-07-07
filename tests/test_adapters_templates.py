@@ -60,7 +60,10 @@ def test_concrete_adapter_output_keys_match_registry_expected_outputs():
     # raft, gmflow, matanyone) must produce outputs whose keys exactly match
     # the registry expected_outputs, so validate_outputs passes.
     reg = load_registry()
-    concrete = ["samrefiner", "hq_sam", "raft", "gmflow", "matanyone", "semat", "maggie", "rvm"]
+    concrete = [
+        "samrefiner", "hq_sam", "raft", "gmflow", "matanyone",
+        "semat", "maggie", "rvm", "cutie", "xmem",
+    ]
     for name in concrete:
         assert set(ADAPTER_OUTPUT_KEYS[name]) == set(reg.get(name).expected_outputs), (
             f"{name}: ADAPTER_OUTPUT_KEYS {ADAPTER_OUTPUT_KEYS[name]} != "
